@@ -1,0 +1,18 @@
+# NodeJS
+node_modules/
+
+# config & runtime data
+.env
+.env.*
+config.js
+paths.json
+
+# macOS crap
+._*
+.DS_Store
+
+# backups
+*.bak
+
+# logs
+*.log

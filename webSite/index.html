@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login</title>
+    <link rel="stylesheet" href="style.css">
+    <script>
+        let inactivityTimer;
+    
+        function startInactivityTimer() {
+            if (inactivityTimer) {
+                clearTimeout(inactivityTimer);
+            }
+            inactivityTimer = setTimeout(() => {
+                alert('Du wurdest wegen Inaktivität abgemeldet.');
+                window.location.href = '/logout'; // Redirect to logout route
+            }, 15 * 60 * 1000); // 15 Minuten Inaktivität
+        }
+    
+        function resetInactivityTimer() {
+            startInactivityTimer();
+        }
+    
+        document.addEventListener('mousemove', resetInactivityTimer);
+        document.addEventListener('keydown', resetInactivityTimer);
+    
+        async function handleLogin(event) {
+    event.preventDefault();
+
+    const username = document.getElementById('username').value;
+    const password = document.getElementById('password').value;
+
+    const response = await fetch('/login', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json' // Verwende JSON als Content-Type
+        },
+        body: JSON.stringify({ username, password }) // Sende die Daten als JSON
+    });
+
+    if (response.ok) {
+        console.log('Login erfolgreich, Weiterleitung...');
+        window.location.href = '/main.html'; // Weiterleitung zur main.html
+    } else {
+        console.log('Login fehlgeschlagen:', response);
+        const result = await response.json();
+        alert(result.message);
+    }
+}
+    </script>
+</head>
+<body>
+<main>
+    <form onsubmit="handleLogin(event)">
+        <fieldset>
+            <input type="text" id="username" name="username" placeholder="User" required>
+            <input type="password" id="password" name="password" placeholder="Passwort">
+            <br>
+            <button type="submit">Anmelden</button>
+        </fieldset>
+    </form>
+</main>
+</body>
+</html>

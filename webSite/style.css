@@ -1,0 +1,254 @@
+/* Body */
+@import url('https://fonts.googleapis.com/css2?family=Raleway:ital,wght@0,100..900;1,100..900&amp;display=swap');
+
+body {
+    font-family: 'Arial', sans-serif;
+    background-image: url('/images/background/background.jpg');
+    background-size: cover;
+    background-position: center;
+    background-attachment: fixed;
+    height: 100vh;
+    margin: 0;
+    line-height: 1.6;
+}
+
+.fancy-heading {
+    font-size: 6rem;
+    font-family: Raleway, sans-serif;
+    font-weight: 900;
+    color: darkgrey;
+    text-transform: uppercase;
+    position: relative;
+    overflow: hidden; /* Damit der Schimmer-Effekt nicht überläuft */
+    transition: all 0.3s ease; /* Für die schwebende Bewegung */
+}
+
+.fancy-heading::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 0;
+    right: 0;
+    height: 5px;
+    background: linear-gradient(90deg, rgba(255, 255, 255, 0) 0%, rgba(0, 123, 255, 0.5) 50%, rgba(255, 255, 255, 0) 100%);
+    animation: shimmer 2s infinite;
+    z-index: 1; /* Damit der Schimmer über dem Text bleibt */
+}
+
+@keyframes shimmer {
+    0% {
+        transform: translateX(-100%);
+    }
+    100% {
+        transform: translateX(100%);
+    }
+}
+
+.fancy-heading:hover {
+    text-shadow: 0 4px 15px rgba(56, 55, 55, 0.2); /* Schwebender Schatten */
+    transform: translateY(-5px); /* Hebt den Text leicht an */
+}
+
+/* Container */
+.container {
+    width: 80%;
+    margin: 0 auto;
+    padding-bottom: 20px;
+}
+
+/* Header */
+header {
+    /*background-color: #007bff;*/
+    padding: 20px 0;
+    text-align: center;
+    margin-bottom: 20px;
+}
+
+header h1 {
+    font-size: 2.5rem;
+    font-weight: 800;
+    color: black;
+    text-align: center;
+
+}
+
+/* Directory List */
+.directory-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 20px;
+    justify-content: center;
+}
+
+/* Einzelnes Verzeichnis */
+.directory {
+    background: none;
+    padding: 20px;
+    border-radius: 10px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    flex: 1 1 25%;
+    min-width: 250px;
+    transition: transform 0.3s ease;
+}
+
+.directory:hover {
+    transform: translateY(-10px);
+}
+
+.directory h2 {
+    font-size: 1.5rem;
+    color: #007bff;
+    margin-bottom: 15px;
+}
+
+/* Directory Files */
+.directory-files {
+    max-height: 250px;
+    overflow-y: auto;
+    border-top: 1px solid #ddd;
+    padding-top: 10px;
+}
+
+.directory-files ul {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+    display: grid;
+}
+
+.directory-files ul li {
+    display: flex;
+    align-items: center;
+    padding: 10px;
+    border-bottom: 1px solid #ddd;
+}
+
+.directory-files ul li::before {
+    content: '';
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    margin-right: 10px;
+    background-size: cover;
+}
+
+.directory-files ul li[data-file-type$="video"]::before {
+    background-image: url('/images/film.png'); /* Icon für mp4-Dateien */
+}
+
+.directory-files ul li[data-file-type$="image"]::before {
+    background-image: url('images/image.png');
+}
+
+.directory-files ul li[data-type="directory"]::before {
+    background-image: url('/images/folder.png'); /* Dein Ordnersymbol */
+
+}
+
+.directory-files ul li a {
+    color: #333;
+    text-decoration: none;
+    transition: color 0.3s;
+    width: fit-content;
+}
+
+.directory-files ul li a:hover {
+    color: #007bff;
+}
+
+/* Loading Anzeige */
+.loading {
+    text-align: center;
+    padding: 10px;
+}
+
+/* Footer */
+.footer {
+    text-align: center;
+    color: #aaa;
+    bottom: 0;
+    width: 100%;
+}
+
+main {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 100vh; /* Höhe des Hauptbereichs auf 100% der Ansicht */
+    font-size: large;
+}
+
+/* Stil für das Fieldset-Formular */
+form {
+    display: flex;
+    flex-direction: column;
+    max-width: 300px;
+    margin: 0 auto;
+    align-items: center;
+}
+
+/* Fieldset anpassen */
+fieldset {
+    border: solid 2px;
+    padding: 30px;
+    border-radius: 20px;
+    border-color: #007bff;
+    box-shadow: 0 14px 28px #00000040, 0 10px 10px #00000038;
+    background: none;
+}
+
+label {
+    margin: 5px;
+}
+
+input {
+    padding: 10px;
+    margin-bottom: 20px;
+    border: 1px solid #ccc;
+    border-radius: 5px;
+    width: 300px;
+    font-size: larger;
+    font-weight: 400;
+    background: none;
+}
+
+button {
+    padding: 10px;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 5px;
+    box-shadow: 0 14px 28px #00000040,
+                0 10px 10px #00000038;
+    width: 300px;
+    margin-top: 20px;
+    font-size: large;
+}
+
+button:hover {
+    background-color: #0056b3;
+}
+
+.logout-button {
+    display: inline-block;
+    padding: 10px;
+    background-color: #007bff;
+    color: white;
+    border-radius: 5px;
+    box-shadow: 0 14px 28px rgba(0, 0, 0, 0.4), 0 10px 10px rgba(0, 0, 0, 0.38);
+    width: 300px;
+    text-align: center;
+    text-decoration: none;
+    margin-top: 20px;
+    font-size: large;
+}
+
+.logout-button:hover {
+    background-color: #0056b3;
+}
+
+.logout-container {
+    margin-top: auto; /* Drückt den Logout-Button zum unteren Rand */
+    text-align: center; /* Zentriert den Button innerhalb des Containers */
+    padding: 20px; /* Fügt etwas Abstand um den Button hinzu */
+}
