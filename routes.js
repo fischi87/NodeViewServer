@@ -26,7 +26,7 @@ function ipWhitelist(req, res, next) {
 
   const clientIp = clientIpRaw.startsWith('::ffff:')
     ? clientIpRaw.slice(7)
-    : clientIp;
+    : clientIpRaw;
 
   console.log(`Client IP: ${clientIp}`);
 
@@ -86,7 +86,6 @@ function isExpertMode(req) {
   return raw === 'true' || raw === '1' || raw === 'yes';
 }
 
-// Nur "sichere" Roots, wenn NICHT Expert-Mode
 function getVisibleRoots(req) {
   const all = getRoots();
   if (isExpertMode(req)) {
@@ -95,10 +94,6 @@ function getVisibleRoots(req) {
   return all.filter(r => isUnderAllowedBase(r.path));
 }
 
-/**
- * Sicheren absoluten Pfad bestimmen, abhängig davon,
- * ob Expert-Mode aktiv ist (Header x-expert-mode).
- */
 function resolveTargetPath(relativePath, req) {
   if (!relativePath) return null;
 
@@ -122,7 +117,7 @@ function resolveTargetPath(relativePath, req) {
 // -----------------------------------------------------------------------------
 
 router.get('/api/paths', auth.requireAuthApi, (req, res) => {
-  const roots = getRoots(); // In Settings immer ALLE zeigen
+  const roots = getRoots();
   console.log('[api/paths] GET ->', roots);
   res.json({ roots });
 });
@@ -135,7 +130,6 @@ router.post('/api/paths', auth.requireAuthApi, async (req, res) => {
   }
 
   const allowDangerous = isExpertMode(req);
-
   const { cleaned, errors } = validateRootsInput(roots, { allowDangerous });
 
   if (cleaned.length === 0) {
@@ -158,13 +152,13 @@ router.post('/api/paths', auth.requireAuthApi, async (req, res) => {
 // -----------------------------------------------------------------------------
 // /api/list – Ordnerinhalt anzeigen
 // -----------------------------------------------------------------------------
+
 router.get('/api/list', auth.requireAuthApi, async (req, res) => {
   try {
     const relativePath = req.query.path ? String(req.query.path).trim() : '';
     console.log('[api/list] relativePath =', `"${relativePath}"`,
                 'expertMode =', isExpertMode(req));
 
-    // Root-Liste
     if (!relativePath) {
       const roots = getVisibleRoots(req);
       console.log('[api/list] -> Root-Liste', roots);
@@ -212,6 +206,7 @@ router.get('/api/list', auth.requireAuthApi, async (req, res) => {
 // -----------------------------------------------------------------------------
 // /api/file – Datei herunterladen
 // -----------------------------------------------------------------------------
+
 router.get('/api/file', auth.requireAuthApi, async (req, res) => {
   try {
     const relativePath = req.query.path ? String(req.query.path).trim() : '';
@@ -226,17 +221,11 @@ router.get('/api/file', auth.requireAuthApi, async (req, res) => {
     console.log('[api/file] absPath =', absPath);
 
     if (!absPath) {
-      console.log('[api/file] resolveTargetPath -> null');
       return res.status(400).json({ error: 'Ungültiger Pfad' });
     }
 
-    const stat = await fs.stat(absPath).catch(err => {
-      console.log('[api/file] fs.stat error:', err.message);
-      return null;
-    });
-
+    const stat = await fs.stat(absPath).catch(() => null);
     if (!stat || !stat.isFile()) {
-      console.log('[api/file] Kein File an Pfad:', absPath);
       return res.status(404).json({ error: 'Datei nicht gefunden' });
     }
 
@@ -251,6 +240,7 @@ router.get('/api/file', auth.requireAuthApi, async (req, res) => {
 // -----------------------------------------------------------------------------
 // /api/delete – Dateien löschen
 // -----------------------------------------------------------------------------
+
 router.post('/api/delete', auth.requireAuthApi, async (req, res) => {
   const { paths } = req.body;
 
@@ -287,64 +277,75 @@ router.post('/api/delete', auth.requireAuthApi, async (req, res) => {
     }
   }
 
-  // -----------------------------------------------------------------------------
-  // /api/version – Aktuelle Server-Version liefern
-  // -----------------------------------------------------------------------------
-  router.get('/api/version', auth.requireAuthApi, async (req, res) => {
-    try {
-      // optional: hier könntest du später noch "updating" o.ä. dazupacken
-      res.json({
-        version: pkg.version
-      });
-    } catch (err) {
-      console.error('[api/version] Fehler:', err);
-      res.status(500).json({ error: 'Fehler beim Lesen der Version' });
-    }
-  });
-
-  // -----------------------------------------------------------------------------
-  // /api/update – Update-Script starten
-  // -----------------------------------------------------------------------------
-  let updateRunning = false;
-
-  router.post('/api/update', auth.requireAuthApi, (req, res) => {
-    if (updateRunning) {
-      return res.status(409).json({
-        ok: false,
-        message: 'Update läuft bereits'
-      });
-    }
-
-    updateRunning = true;
-
-    const scriptPath = path.join(__dirname, 'update.sh');
-
-    console.log('[api/update] Starte Update-Script:', scriptPath);
-
-    // Script im Hintergrund starten
-    const child = execFile('bash', [scriptPath], {
-      cwd: __dirname,
-      detached: true
-    });
-
-    child.on('exit', (code) => {
-      updateRunning = false;
-      console.log('[api/update] Script beendet mit Code:', code);
-    });
-
-    child.on('error', (err) => {
-      updateRunning = false;
-      console.error('[api/update] Fehler beim Starten:', err);
-    });
-
-    // Sofort Antwort geben – Script läuft im Hintergrund weiter
-    return res.status(202).json({
-      ok: true,
-      message: 'Update gestartet'
-    });
-  });
-
   return res.status(failed.length === 0 ? 200 : 207).json({ deleted, failed });
+});
+
+// -----------------------------------------------------------------------------
+// /api/version – Aktuelle Server-Version liefern
+// -----------------------------------------------------------------------------
+
+router.get('/api/version', auth.requireAuthApi, async (req, res) => {
+  try {
+    let buildInfo = null;
+
+    try {
+      const raw = await fs.readFile(path.join(__dirname, 'build-info.json'), 'utf8');
+      buildInfo = JSON.parse(raw);
+    } catch (e) {
+      // Wenn Datei fehlt oder kaputt ist -> ignorieren, nur version zurückgeben
+      console.warn('[api/version] Keine oder ungültige build-info.json:', e.message);
+    }
+
+    res.json({
+      version: pkg.version || 'unknown',
+      gitCommit: buildInfo?.gitCommit || null,
+      buildTime: buildInfo?.buildTime || null
+    });
+  } catch (err) {
+    console.error('[api/version] Fehler:', err);
+    res.status(500).json({ error: 'Fehler beim Lesen der Version' });
+  }
+});
+
+// -----------------------------------------------------------------------------
+// /api/update – Update-Script starten
+// -----------------------------------------------------------------------------
+
+let updateRunning = false;
+
+router.post('/api/update', auth.requireAuthApi, (req, res) => {
+  if (updateRunning) {
+    return res.status(409).json({
+      ok: false,
+      message: 'Update läuft bereits'
+    });
+  }
+
+  updateRunning = true;
+
+  const scriptPath = path.join(__dirname, 'update.sh');
+
+  console.log('[api/update] Starte Update-Script:', scriptPath);
+
+  const child = execFile('bash', [scriptPath], {
+    cwd: __dirname,
+    detached: true
+  });
+
+  child.on('exit', (code) => {
+    updateRunning = false;
+    console.log('[api/update] Script beendet mit Code:', code);
+  });
+
+  child.on('error', (err) => {
+    updateRunning = false;
+    console.error('[api/update] Fehler beim Starten:', err);
+  });
+
+  return res.status(202).json({
+    ok: true,
+    message: 'Update gestartet'
+  });
 });
 
 module.exports = router;

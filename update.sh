@@ -14,6 +14,20 @@ if [ -d .git ]; then
   echo "Hole neueste Version von GitHub (git pull)..."
   git pull
   echo
+
+  # 1b) Build-Info schreiben
+  VERSION_FILE="$SCRIPT_DIR/build-info.json"
+  GIT_COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
+  BUILD_TIME="$(date -Iseconds)"
+
+  echo "Schreibe Build-Info nach $VERSION_FILE ..."
+  cat > "$VERSION_FILE" <<EOF
+{
+  "gitCommit": "$GIT_COMMIT",
+  "buildTime": "$BUILD_TIME"
+}
+EOF
+  echo
 else
   echo "Hinweis: kein .git-Verzeichnis – überspringe git pull."
   echo
@@ -29,7 +43,7 @@ if command -v pm2 >/dev/null 2>&1; then
   echo "PM2 ist installiert."
   if pm2 list | grep -q "nodeviewserver"; then
     echo "Starte PM2-Prozess 'nodeviewserver' neu..."
-    pm2 restart nodeview
+    pm2 restart nodeviewserver
   else
     echo "Es wurde kein PM2-Prozess mit dem Namen 'nodeviewserver' gefunden."
     echo "Du kannst ihn starten mit:"
