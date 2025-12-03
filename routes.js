@@ -3,8 +3,10 @@ const express = require('express');
 const serveIndex = require('serve-index');
 const path = require('path');
 const fs = require('fs/promises');
+const { execFile } = require('child_process');
 
 const config = require('./config');
+const pkg = require('./package.json');
 const auth = require('./auth');
 const { sortFilesByMTime } = require('./fileUtils');
 const { getRoots, setRoots, validateRootsInput, isUnderAllowedBase } = require('./pathsStore');
@@ -284,6 +286,63 @@ router.post('/api/delete', auth.requireAuthApi, async (req, res) => {
       failed.push({ path: relPath, reason: err.message });
     }
   }
+
+  // -----------------------------------------------------------------------------
+  // /api/version – Aktuelle Server-Version liefern
+  // -----------------------------------------------------------------------------
+  router.get('/api/version', auth.requireAuthApi, async (req, res) => {
+    try {
+      // optional: hier könntest du später noch "updating" o.ä. dazupacken
+      res.json({
+        version: pkg.version
+      });
+    } catch (err) {
+      console.error('[api/version] Fehler:', err);
+      res.status(500).json({ error: 'Fehler beim Lesen der Version' });
+    }
+  });
+
+  // -----------------------------------------------------------------------------
+  // /api/update – Update-Script starten
+  // -----------------------------------------------------------------------------
+  let updateRunning = false;
+
+  router.post('/api/update', auth.requireAuthApi, (req, res) => {
+    if (updateRunning) {
+      return res.status(409).json({
+        ok: false,
+        message: 'Update läuft bereits'
+      });
+    }
+
+    updateRunning = true;
+
+    const scriptPath = path.join(__dirname, 'update.sh');
+
+    console.log('[api/update] Starte Update-Script:', scriptPath);
+
+    // Script im Hintergrund starten
+    const child = execFile('bash', [scriptPath], {
+      cwd: __dirname,
+      detached: true
+    });
+
+    child.on('exit', (code) => {
+      updateRunning = false;
+      console.log('[api/update] Script beendet mit Code:', code);
+    });
+
+    child.on('error', (err) => {
+      updateRunning = false;
+      console.error('[api/update] Fehler beim Starten:', err);
+    });
+
+    // Sofort Antwort geben – Script läuft im Hintergrund weiter
+    return res.status(202).json({
+      ok: true,
+      message: 'Update gestartet'
+    });
+  });
 
   return res.status(failed.length === 0 ? 200 : 207).json({ deleted, failed });
 });

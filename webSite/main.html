@@ -3,13 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MyHome24</title>
+    <title>NodeViewServer</title>
     <link rel="stylesheet" href="style.css">
     <script src="script.js" defer></script>
 </head>
 <body>
     <header>
-        <h1 class="fancy-heading">MyHome24 Datenserver</h1>
+        <h1 class="fancy-heading">NodeViewServer</h1>
+        <div id="update-info">
+            <span id="server-version">Version wird geladen...</span>
+            <button id="btn-update-server" style="margin-left: 10px;">
+                Server-Update ausführen
+            </button>
+        </div>
     </header>
     <div class="container">
         <div id="directories" class="directory-list">
@@ -22,7 +28,7 @@
         </div>
     </div>
     <footer class="footer">
-        <p>&copy; 2024 MyHome24-Browser</p>
+        <p>&copy; NodeViewServer</p>
     </footer>
 </body>
 </html>
