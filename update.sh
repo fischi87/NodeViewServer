@@ -9,24 +9,14 @@ echo
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
+# Tags holen
+git fetch --tags --quiet
+
 # 1) git pull (falls .git vorhanden)
 if [ -d .git ]; then
-  echo "Hole neueste Version von GitHub (git pull)..."
+  echo "Hole neuesten Stand von GitHub (inkl. Tags)..."
+  git fetch --all --tags --quiet
   git pull
-  echo
-
-  # 1b) Build-Info schreiben
-  VERSION_FILE="$SCRIPT_DIR/build-info.json"
-  GIT_COMMIT="$(git rev-parse --short HEAD 2>/dev/null || echo unknown)"
-  BUILD_TIME="$(date -Iseconds)"
-
-  echo "Schreibe Build-Info nach $VERSION_FILE ..."
-  cat > "$VERSION_FILE" <<EOF
-{
-  "gitCommit": "$GIT_COMMIT",
-  "buildTime": "$BUILD_TIME"
-}
-EOF
   echo
 else
   echo "Hinweis: kein .git-Verzeichnis – überspringe git pull."

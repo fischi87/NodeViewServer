@@ -6,6 +6,7 @@ node_modules/
 .env.*
 config.js
 paths.json
+build-info.json
 
 # macOS crap
 ._*

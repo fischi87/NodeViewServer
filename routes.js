@@ -3,7 +3,7 @@ const express = require('express');
 const serveIndex = require('serve-index');
 const path = require('path');
 const fs = require('fs/promises');
-const { execFile } = require('child_process');
+const { execFile, exec } = require('child_process');
 
 const config = require('./config');
 const pkg = require('./package.json');
@@ -110,6 +110,61 @@ function resolveTargetPath(relativePath, req) {
 
   if (!target.startsWith(base)) return null;
   return target;
+}
+
+// -----------------------------------------------------------------------------
+// Git-Helper für Version / Update-Erkennung
+// -----------------------------------------------------------------------------
+
+function checkForUpdate() {
+  return new Promise((resolve) => {
+    // Vergleicht lokalen HEAD mit Upstream (@{u})
+    const cmd = 'git fetch --quiet && git rev-parse HEAD && git rev-parse @{u}';
+
+    exec(cmd, { cwd: __dirname }, (err, stdout) => {
+      if (err) {
+        console.warn('[checkForUpdate] Fehler:', err.message);
+        return resolve(null); // unbekannt
+      }
+
+      const lines = stdout.trim().split('\n');
+      if (lines.length < 2) return resolve(null);
+
+      const local = lines[0].trim();
+      const remote = lines[1].trim();
+
+      if (!local || !remote) return resolve(null);
+
+      resolve(local !== remote); // true = es gibt neuere Commits
+    });
+  });
+}
+
+function getCurrentTag() {
+  return new Promise((resolve) => {
+    exec('git describe --tags --abbrev=0', { cwd: __dirname }, (err, stdout) => {
+      if (err) {
+        // kein Tag vorhanden oder Repo nicht getagged
+        return resolve(null);
+      }
+      const tag = stdout.trim();
+      resolve(tag || null);
+    });
+  });
+}
+
+function getLatestRemoteTag() {
+  return new Promise((resolve) => {
+    const cmd = 'git fetch --tags --quiet && git tag --sort=-v:refname';
+    exec(cmd, { cwd: __dirname }, (err, stdout) => {
+      if (err) {
+        console.warn('[getLatestRemoteTag] Fehler:', err.message);
+        return resolve(null);
+      }
+      const tags = stdout.trim().split('\n').filter(Boolean);
+      resolve(tags[0] || null); // neuester Tag
+    });
+  });
 }
 
 // -----------------------------------------------------------------------------
@@ -281,25 +336,28 @@ router.post('/api/delete', auth.requireAuthApi, async (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
-// /api/version – Aktuelle Server-Version liefern
+// /api/version – Aktuelle Server-Version + Git-Tags
 // -----------------------------------------------------------------------------
 
 router.get('/api/version', auth.requireAuthApi, async (req, res) => {
   try {
-    let buildInfo = null;
+    const [updateByCommits, currentTag, latestTag] = await Promise.all([
+      checkForUpdate(),
+      getCurrentTag(),
+      getLatestRemoteTag()
+    ]);
 
-    try {
-      const raw = await fs.readFile(path.join(__dirname, 'build-info.json'), 'utf8');
-      buildInfo = JSON.parse(raw);
-    } catch (e) {
-      // Wenn Datei fehlt oder kaputt ist -> ignorieren, nur version zurückgeben
-      console.warn('[api/version] Keine oder ungültige build-info.json:', e.message);
-    }
+    const tagDiffers =
+      currentTag && latestTag && currentTag !== latestTag;
+
+    const updateAvailable =
+      updateByCommits === true || tagDiffers === true;
 
     res.json({
       version: pkg.version || 'unknown',
-      gitCommit: buildInfo?.gitCommit || null,
-      buildTime: buildInfo?.buildTime || null
+      currentTag: currentTag || null,
+      latestTag: latestTag || null,
+      updateAvailable
     });
   } catch (err) {
     console.error('[api/version] Fehler:', err);

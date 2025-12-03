@@ -139,22 +139,77 @@ async function loadCurrentDirectory() {
     }
 }
 
+// -----------------------------
+// Version + Update-Handling
+// -----------------------------
+
 async function fetchServerVersion() {
+    const span = document.getElementById('server-version');
+    const btn = document.getElementById('btn-update-server');
+
+    if (span) {
+        span.textContent = 'Version wird geladen...';
+    }
+
     try {
         const res = await fetch('/api/version');
-        if (!res.ok) throw new Error('HTTP ' + res.status);
+        if (!res.ok) {
+            throw new Error('HTTP ' + res.status);
+        }
+
         const data = await res.json();
-        const span = document.getElementById('server-version');
-        span.textContent = `Server-Version: ${data.version}`;
+
+        // Basis-Text
+        let text = `Server-Version: ${data.version || 'unbekannt'}`;
+
+        // Tag-Infos anhängen, falls verfügbar
+        if (data.currentTag) {
+            text += ` (aktuell: ${data.currentTag}`;
+            if (data.latestTag && data.latestTag !== data.currentTag) {
+                text += `, neu: ${data.latestTag}`;
+            }
+            text += ')';
+        } else if (data.latestTag) {
+            text += ` (neueste Version: ${data.latestTag})`;
+        }
+
+        if (span) {
+            span.textContent = text;
+        }
+
+        // Button-Zustand je nach updateAvailable
+        if (btn) {
+            if (data.updateAvailable) {
+                btn.disabled = false;
+                btn.title = 'Neues Update von GitHub verfügbar';
+                btn.classList.add('update-available'); // optional für CSS
+            } else {
+                btn.disabled = false; // Update trotzdem erlauben
+                btn.title = 'Server ist aktuell';
+                btn.classList.remove('update-available');
+            }
+        }
     } catch (err) {
         console.error('Fehler beim Laden der Version:', err);
-        const span = document.getElementById('server-version');
-        if (span) span.textContent = 'Server-Version: unbekannt';
+        if (span) {
+            span.textContent = 'Server-Version: unbekannt';
+        }
+        if (btn) {
+            btn.title = 'Fehler beim Laden der Version';
+        }
     }
 }
 
 async function triggerServerUpdate() {
-    if (!confirm('Server-Update wirklich starten?')) return;
+    if (!confirm('Server-Update wirklich starten?')) {
+        return;
+    }
+
+    const btn = document.getElementById('btn-update-server');
+    if (btn) {
+        btn.disabled = true;
+        btn.textContent = 'Update läuft...';
+    }
 
     try {
         const res = await fetch('/api/update', {
@@ -168,26 +223,40 @@ async function triggerServerUpdate() {
 
         if (res.status === 202 && data.ok) {
             alert('Update wurde gestartet. Der Server kann sich gleich neu starten.');
+
+            // Nach ein paar Sekunden nochmal Version prüfen
+            setTimeout(fetchServerVersion, 5000);
         } else {
             alert('Update konnte nicht gestartet werden: ' + (data.message || 'Unbekannter Fehler'));
         }
     } catch (err) {
         console.error('Fehler bei /api/update:', err);
         alert('Fehler beim Starten des Updates. Siehe Konsole/Server-Log.');
+    } finally {
+        if (btn) {
+            btn.disabled = false;
+            btn.textContent = 'Server-Update ausführen';
+        }
     }
 }
 
+// -----------------------------
+// Event-Handler
+// -----------------------------
+
 // Beim Laden der Seite
 document.addEventListener('DOMContentLoaded', () => {
+    // Version + Tags vom Server holen
     fetchServerVersion();
 
-    const btnUpdate = document.getElementById('btn-update-server');
-    if (btnUpdate) {
-        btnUpdate.addEventListener('click', triggerServerUpdate);
-    }
+    // Verzeichnisse laden (Root)
+    loadCurrentDirectory();
 
-    // bestehendes init:
-    loadDirectories();
+    // Update-Button verkabeln
+    const btn = document.getElementById('btn-update-server');
+    if (btn) {
+        btn.addEventListener('click', triggerServerUpdate);
+    }
 });
 
 // Zurück-Button (falls irgendwo im HTML vorhanden)
@@ -196,6 +265,3 @@ document.addEventListener('click', function(event) {
         window.location.href = '/';
     }
 });
-
-// Initiales Laden
-document.addEventListener('DOMContentLoaded', loadCurrentDirectory);
