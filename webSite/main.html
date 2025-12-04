@@ -3,38 +3,37 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>MyHome24</title>
+    <title>NodeViewServer</title>
     <link rel="stylesheet" href="style.css">
     <script src="script.js" defer></script>
 </head>
 <body>
-    <header>
-        <h1 class="fancy-heading">MyHome24 Datenserver</h1>
+    <header class="page-header">
+        <h1 class="fancy-heading">NodeViewServer</h1>
 
-        <div style="text-align:center; margin-top: 10px; color: #444;">
+        <!-- Version + Update-Button in einer Zeile / Box -->
+        <div id="update-info" class="update-info">
             <span id="server-version">Server-Version wird geladen...</span>
-        </div>
-
-        <div style="text-align:center; margin-top: 10px;">
-            <button id="btn-update-server" type="button">
+            <button id="btn-update-server" type="button" class="update-button">
                 Server-Update ausführen
             </button>
         </div>
     </header>
 
-    <div class="container">
+    <main class="container">
         <div id="directories" class="directory-list">
             <!-- Dynamisch geladene Verzeichnisse erscheinen hier -->
         </div>
+
         <div class="logout-container">
             <form id="logoutForm" action="/logout" method="POST">
-                <button type="submit">Abmelden</button>
+                <button type="submit" class="logout-button">Abmelden</button>
             </form>
         </div>
-    </div>
+    </main>
 
     <footer class="footer">
-        <p>&copy; 2024 MyHome24-Browser</p>
+        <p>&copy; NodeViewServer</p>
     </footer>
 </body>
 </html>
