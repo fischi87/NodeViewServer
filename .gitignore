@@ -17,3 +17,6 @@ build-info.json
 
 # logs
 *.log
+
+#sh
+release-tag.sh
