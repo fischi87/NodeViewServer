@@ -3,13 +3,13 @@ const express = require('express');
 const serveIndex = require('serve-index');
 const path = require('path');
 const fs = require('fs/promises');
-const { execFile, exec } = require('child_process');
+const { exec, execFile } = require('child_process'); // Git-Check + update.sh
 
 const config = require('./config');
-const pkg = require('./package.json');
 const auth = require('./auth');
 const { sortFilesByMTime } = require('./fileUtils');
 const { getRoots, setRoots, validateRootsInput, isUnderAllowedBase } = require('./pathsStore');
+const pkg = require('./package.json'); // Version aus package.json 
 
 const router = express.Router();
 
@@ -24,9 +24,10 @@ function ipWhitelist(req, res, next) {
       .split(',')[0]
       .trim();
 
-  const clientIp = clientIpRaw.startsWith('::ffff:')
-    ? clientIpRaw.slice(7)
-    : clientIpRaw;
+  let clientIp = clientIpRaw;
+  if (clientIpRaw.startsWith('::ffff:')) {
+    clientIp = clientIpRaw.slice(7);
+  }
 
   console.log(`Client IP: ${clientIp}`);
 
@@ -43,6 +44,7 @@ function ipWhitelist(req, res, next) {
 // Klassische Browser-Routen (webSite)
 // -----------------------------------------------------------------------------
 
+// JSON-Liste der Dateien in den "alten" statischen Verzeichnissen (snapshot / vorne / hinten)
 router.get('/files/:dir', ipWhitelist, async (req, res) => {
   const dir = req.params.dir;
   const dirPath = config.directories[dir];
@@ -60,19 +62,23 @@ router.get('/files/:dir', ipWhitelist, async (req, res) => {
   }
 });
 
+// Statisches Serving + Directory-Index für die alten Verzeichnisse
 Object.keys(config.directories).forEach(dir => {
   const dirPath = config.directories[dir];
   router.use(`/files/${dir}`, ipWhitelist, express.static(dirPath));
   router.use(`/files/${dir}`, ipWhitelist, serveIndex(dirPath, { icons: true }));
 });
 
+// Login / Logout
 router.post('/login', (req, res) => auth.login(req, res));
 router.post('/logout', (req, res) => auth.logout(req, res));
 
+// Login-Seite
 router.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'webSite', 'login.html'));
 });
 
+// Haupt-Seite (Dateibrowser)
 router.get('/main.html', ipWhitelist, auth.checkAuthentication, (req, res) => {
   res.sendFile(path.join(__dirname, 'webSite', 'main.html'));
 });
@@ -86,6 +92,7 @@ function isExpertMode(req) {
   return raw === 'true' || raw === '1' || raw === 'yes';
 }
 
+// Nur "sichere" Roots, wenn NICHT Expert-Mode
 function getVisibleRoots(req) {
   const all = getRoots();
   if (isExpertMode(req)) {
@@ -94,6 +101,10 @@ function getVisibleRoots(req) {
   return all.filter(r => isUnderAllowedBase(r.path));
 }
 
+/**
+ * Sicheren absoluten Pfad bestimmen, abhängig davon,
+ * ob Expert-Mode aktiv ist (Header x-expert-mode).
+ */
 function resolveTargetPath(relativePath, req) {
   if (!relativePath) return null;
 
@@ -113,18 +124,18 @@ function resolveTargetPath(relativePath, req) {
 }
 
 // -----------------------------------------------------------------------------
-// Git-Helper für Version / Update-Erkennung
+// Helper: Git-Update-Status prüfen (nur Commits, keine Tags)
+//  -> git fetch --quiet && git rev-parse HEAD && git rev-parse @{u}
+//     Wenn HEAD != @{u} => es gibt neuere Commits auf dem Remote
 // -----------------------------------------------------------------------------
-
 function checkForUpdate() {
   return new Promise((resolve) => {
-    // Vergleicht lokalen HEAD mit Upstream (@{u})
     const cmd = 'git fetch --quiet && git rev-parse HEAD && git rev-parse @{u}';
 
     exec(cmd, { cwd: __dirname }, (err, stdout) => {
       if (err) {
         console.warn('[checkForUpdate] Fehler:', err.message);
-        return resolve(null); // unbekannt
+        return resolve(null); // "konnte nicht prüfen"
       }
 
       const lines = stdout.trim().split('\n');
@@ -135,34 +146,10 @@ function checkForUpdate() {
 
       if (!local || !remote) return resolve(null);
 
-      resolve(local !== remote); // true = es gibt neuere Commits
-    });
-  });
-}
+      const different = local !== remote;
+      console.log('[checkForUpdate] local =', local, 'remote =', remote, 'different =', different);
 
-function getCurrentTag() {
-  return new Promise((resolve) => {
-    exec('git describe --tags --abbrev=0', { cwd: __dirname }, (err, stdout) => {
-      if (err) {
-        // kein Tag vorhanden oder Repo nicht getagged
-        return resolve(null);
-      }
-      const tag = stdout.trim();
-      resolve(tag || null);
-    });
-  });
-}
-
-function getLatestRemoteTag() {
-  return new Promise((resolve) => {
-    const cmd = 'git fetch --tags --quiet && git tag --sort=-v:refname';
-    exec(cmd, { cwd: __dirname }, (err, stdout) => {
-      if (err) {
-        console.warn('[getLatestRemoteTag] Fehler:', err.message);
-        return resolve(null);
-      }
-      const tags = stdout.trim().split('\n').filter(Boolean);
-      resolve(tags[0] || null); // neuester Tag
+      resolve(different); // true => es gibt neuere Commits
     });
   });
 }
@@ -172,7 +159,7 @@ function getLatestRemoteTag() {
 // -----------------------------------------------------------------------------
 
 router.get('/api/paths', auth.requireAuthApi, (req, res) => {
-  const roots = getRoots();
+  const roots = getRoots(); // In Settings immer ALLE zeigen
   console.log('[api/paths] GET ->', roots);
   res.json({ roots });
 });
@@ -207,13 +194,13 @@ router.post('/api/paths', auth.requireAuthApi, async (req, res) => {
 // -----------------------------------------------------------------------------
 // /api/list – Ordnerinhalt anzeigen
 // -----------------------------------------------------------------------------
-
 router.get('/api/list', auth.requireAuthApi, async (req, res) => {
   try {
     const relativePath = req.query.path ? String(req.query.path).trim() : '';
     console.log('[api/list] relativePath =', `"${relativePath}"`,
                 'expertMode =', isExpertMode(req));
 
+    // Root-Liste
     if (!relativePath) {
       const roots = getVisibleRoots(req);
       console.log('[api/list] -> Root-Liste', roots);
@@ -261,7 +248,6 @@ router.get('/api/list', auth.requireAuthApi, async (req, res) => {
 // -----------------------------------------------------------------------------
 // /api/file – Datei herunterladen
 // -----------------------------------------------------------------------------
-
 router.get('/api/file', auth.requireAuthApi, async (req, res) => {
   try {
     const relativePath = req.query.path ? String(req.query.path).trim() : '';
@@ -276,11 +262,17 @@ router.get('/api/file', auth.requireAuthApi, async (req, res) => {
     console.log('[api/file] absPath =', absPath);
 
     if (!absPath) {
+      console.log('[api/file] resolveTargetPath -> null');
       return res.status(400).json({ error: 'Ungültiger Pfad' });
     }
 
-    const stat = await fs.stat(absPath).catch(() => null);
+    const stat = await fs.stat(absPath).catch(err => {
+      console.log('[api/file] fs.stat error:', err.message);
+      return null;
+    });
+
     if (!stat || !stat.isFile()) {
+      console.log('[api/file] Kein File an Pfad:', absPath);
       return res.status(404).json({ error: 'Datei nicht gefunden' });
     }
 
@@ -295,7 +287,6 @@ router.get('/api/file', auth.requireAuthApi, async (req, res) => {
 // -----------------------------------------------------------------------------
 // /api/delete – Dateien löschen
 // -----------------------------------------------------------------------------
-
 router.post('/api/delete', auth.requireAuthApi, async (req, res) => {
   const { paths } = req.body;
 
@@ -336,27 +327,15 @@ router.post('/api/delete', auth.requireAuthApi, async (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
-// /api/version – Aktuelle Server-Version + Git-Tags
+// /api/version – Version aus package.json + Update-Status nur über Commits
 // -----------------------------------------------------------------------------
-
 router.get('/api/version', auth.requireAuthApi, async (req, res) => {
   try {
-    const [updateByCommits, currentTag, latestTag] = await Promise.all([
-      checkForUpdate(),
-      getCurrentTag(),
-      getLatestRemoteTag()
-    ]);
-
-    const tagDiffers =
-      currentTag && latestTag && currentTag !== latestTag;
-
-    const updateAvailable =
-      updateByCommits === true || tagDiffers === true;
+    const updateByCommits = await checkForUpdate();
+    const updateAvailable = updateByCommits === true;
 
     res.json({
       version: pkg.version || 'unknown',
-      currentTag: currentTag || null,
-      latestTag: latestTag || null,
       updateAvailable
     });
   } catch (err) {
@@ -366,9 +345,8 @@ router.get('/api/version', auth.requireAuthApi, async (req, res) => {
 });
 
 // -----------------------------------------------------------------------------
-// /api/update – Update-Script starten
+// /api/update – führt update.sh aus (git pull + npm install + Restart)
 // -----------------------------------------------------------------------------
-
 let updateRunning = false;
 
 router.post('/api/update', auth.requireAuthApi, (req, res) => {
@@ -389,6 +367,8 @@ router.post('/api/update', auth.requireAuthApi, (req, res) => {
     cwd: __dirname,
     detached: true
   });
+
+  child.unref();
 
   child.on('exit', (code) => {
     updateRunning = false;

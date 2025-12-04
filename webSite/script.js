@@ -1,11 +1,12 @@
+// script.js
 // -----------------------------
-// Einfache Dateibrowser-Logik
-// Backend: /api/list + /api/file
+// Dateibrowser + Update-Logik
+// Backend: /api/list, /api/file, /api/delete, /api/version, /api/update
 // -----------------------------
 
 let currentPath = ''; // "" = Root-Liste
 
-// Hilfsfunktion: Text für Überschrift
+// Überschrift für den aktuellen Pfad
 function getTitleForPath(path) {
     if (!path) return 'Freigegebene Bereiche';
     return path;
@@ -22,133 +23,162 @@ function goUp() {
 
 // Ordner öffnen (Pfad nach unten)
 function openFolder(name) {
-    currentPath = currentPath ? `${currentPath}/${name}` : name;
+    currentPath = currentPath
+        ? `${currentPath}/${name}`
+        : name;
     loadCurrentDirectory();
 }
 
-// Hauptfunktion: aktuelles Verzeichnis laden
+// Hilfsfunktion: erstellt ein Listenelement für Datei/Ordner
+function createItemElement(item) {
+    const li = document.createElement('li');
+    li.classList.add('directory-item');
+    li.setAttribute('data-type', item.type);
+
+    const span = document.createElement('span');
+    span.textContent = item.name;
+
+    if (item.type === 'folder') {
+        span.classList.add('clickable-folder');
+        span.addEventListener('click', () => openFolder(item.name));
+    } else {
+        span.classList.add('clickable-file');
+        span.addEventListener('click', () => openFile(item.name));
+    }
+
+    li.appendChild(span);
+
+    if (item.type === 'file') {
+        const deleteBtn = document.createElement('button');
+        deleteBtn.textContent = 'Löschen';
+        deleteBtn.classList.add('delete-button');
+        deleteBtn.addEventListener('click', (ev) => {
+            ev.stopPropagation();
+            deleteFile(item.name);
+        });
+        li.appendChild(deleteBtn);
+    }
+
+    return li;
+}
+
+// Aktuelles Verzeichnis vom Server laden
 async function loadCurrentDirectory() {
     const container = document.getElementById('directories');
     if (!container) return;
 
     container.innerHTML = '';
 
-    // Directory-Card erstellen
-    const directoryElement = document.createElement('div');
-    directoryElement.classList.add('directory');
+    const title = document.createElement('h2');
+    title.textContent = getTitleForPath(currentPath);
+    container.appendChild(title);
 
-    directoryElement.innerHTML = `
-        <h2>${getTitleForPath(currentPath)}</h2>
-        <div class="directory-files">
-            <p class="loading">Lade Inhalte...</p>
-        </div>
-    `;
+    const listWrapper = document.createElement('div');
+    listWrapper.classList.add('directory-files');
+    container.appendChild(listWrapper);
 
-    container.appendChild(directoryElement);
+    const ul = document.createElement('ul');
+    listWrapper.appendChild(ul);
 
-    const filesContainer = directoryElement.querySelector('.directory-files');
+    // "Nach oben"-Eintrag, wenn wir nicht im Root sind
+    if (currentPath) {
+        const upLi = document.createElement('li');
+        upLi.textContent = '⬆️ Eine Ebene nach oben';
+        upLi.classList.add('clickable-folder');
+        upLi.addEventListener('click', goUp);
+        ul.appendChild(upLi);
+    }
 
     try {
-        const url = currentPath
-            ? `/api/list?path=${encodeURIComponent(currentPath)}`
-            : '/api/list';
+        const params = currentPath ? `?path=${encodeURIComponent(currentPath)}` : '';
+        const res = await fetch(`/api/list${params}`);
 
-        const response = await fetch(url, {
-            method: 'GET'
-            // wichtig: keine credentials-Option setzen -> Cookies werden bei same-origin automatisch gesendet
-        });
+        if (!res.ok) {
+            throw new Error('HTTP ' + res.status);
+        }
 
-        if (!response.ok) {
-            filesContainer.innerHTML = `<p>Fehler beim Laden: ${response.status}</p>`;
+        const data = await res.json();
+
+        if (!Array.isArray(data.items) || data.items.length === 0) {
+            const emptyLi = document.createElement('li');
+            emptyLi.textContent = '(Keine Einträge)';
+            ul.appendChild(emptyLi);
             return;
         }
 
-        const data = await response.json();
-
-        // Erwartete Struktur:
-        // {
-        //   currentPath: 'Home/Bilder' oder '',
-        //   items: [{ name: 'xyz', type: 'folder' | 'file' }, ...]
-        // }
-
-        filesContainer.innerHTML = '';
-
-        const list = document.createElement('ul');
-
-        // ".." nach oben, falls nicht in der Root-Liste
-        if (currentPath) {
-            const upItem = document.createElement('li');
-            const upLink = document.createElement('a');
-            upLink.href = '#';
-            upLink.textContent = '..';
-            upLink.addEventListener('click', (e) => {
-                e.preventDefault();
-                goUp();
-            });
-            upItem.appendChild(upLink);
-            list.appendChild(upItem);
-        }
-
-        // Items rendern
         data.items.forEach(item => {
-            const li = document.createElement('li');
-            const link = document.createElement('a');
-            link.textContent = item.name;
-            link.href = '#';
-
-            if (item.type === 'folder') {
-                // Ordner
-                li.setAttribute('data-type', 'directory');
-                link.addEventListener('click', (e) => {
-                    e.preventDefault();
-                    openFolder(item.name);
-                });
-            } else {
-                // Datei
-                const fullPath = currentPath
-                    ? `${currentPath}/${item.name}`
-                    : item.name;
-
-                // Icons anhand des Typs / der Endung
-                const lowerName = item.name.toLowerCase();
-                if (lowerName.endsWith('.mp4')) {
-                    li.setAttribute('data-file-type', 'video');
-                } else if (lowerName.match(/\.(jpe?g|png|gif|bmp|webp)$/i)) {
-                    li.setAttribute('data-file-type', 'image');
-                } else {
-                    li.setAttribute('data-file-type', 'file');
-                }
-
-                // Download-/View-Link
-                link.href = `/api/file?path=${encodeURIComponent(fullPath)}`;
-                link.target = '_blank';
-            }
-
-            li.appendChild(link);
-            list.appendChild(li);
+            const li = createItemElement(item);
+            ul.appendChild(li);
         });
-
-        if (data.items.length === 0) {
-            filesContainer.innerHTML = '<p>Keine Einträge vorhanden.</p>';
-        } else {
-            filesContainer.appendChild(list);
-        }
-    } catch (error) {
-        console.error('Fehler beim Laden des Verzeichnisses:', error);
-        filesContainer.innerHTML = `<p>Fehler: ${error.message}</p>`;
+    } catch (err) {
+        console.error('[loadCurrentDirectory] Fehler:', err);
+        const errLi = document.createElement('li');
+        errLi.textContent = 'Fehler beim Laden des Verzeichnisses';
+        ul.appendChild(errLi);
     }
 }
 
-// -----------------------------
-// Version + Update-Handling
-// -----------------------------
+// Datei öffnen (Download im Browser)
+function openFile(fileName) {
+    if (!currentPath) return;
+    const relPath = `${currentPath}/${fileName}`;
+    const url = `/api/file?path=${encodeURIComponent(relPath)}`;
+    window.open(url, '_blank');
+}
 
+// Datei löschen
+async function deleteFile(fileName) {
+    if (!currentPath) return;
+    const relPath = `${currentPath}/${fileName}`;
+
+    if (!confirm(`Datei "${fileName}" wirklich löschen?`)) {
+        return;
+    }
+
+    try {
+        const res = await fetch('/api/delete', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ paths: [relPath] })
+        });
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok && res.status !== 207) {
+            alert('Löschen fehlgeschlagen: ' + (data.error || res.status));
+            return;
+        }
+
+        if (Array.isArray(data.deleted) && data.deleted.length > 0) {
+            alert('Datei gelöscht: ' + data.deleted.join(', '));
+        }
+
+        if (Array.isArray(data.failed) && data.failed.length > 0) {
+            const msgs = data.failed.map(f => `${f.path}: ${f.reason}`).join('\n');
+            alert('Einige Dateien konnten nicht gelöscht werden:\n' + msgs);
+        }
+
+        // Verzeichnis neu laden
+        loadCurrentDirectory();
+    } catch (err) {
+        console.error('[deleteFile] Fehler:', err);
+        alert('Fehler beim Löschen der Datei.');
+    }
+}
+
+// -----------------------------------------------------------------------------
+// Version & Update-Logik
+// -----------------------------------------------------------------------------
+
+// /api/version -> Version + updateAvailable abfragen
 async function fetchServerVersion() {
     const span = document.getElementById('server-version');
     const btn = document.getElementById('btn-update-server');
 
     if (span) {
-        span.textContent = 'Version wird geladen...';
+        span.textContent = 'Server-Version wird geladen...';
     }
 
     try {
@@ -159,19 +189,8 @@ async function fetchServerVersion() {
 
         const data = await res.json();
 
-        // Basis-Text
-        let text = `Server-Version: ${data.version || 'unbekannt'}`;
-
-        // Tag-Infos anhängen, falls verfügbar
-        if (data.currentTag) {
-            text += ` (aktuell: ${data.currentTag}`;
-            if (data.latestTag && data.latestTag !== data.currentTag) {
-                text += `, neu: ${data.latestTag}`;
-            }
-            text += ')';
-        } else if (data.latestTag) {
-            text += ` (neueste Version: ${data.latestTag})`;
-        }
+        // Einfacher Text mit Version
+        const text = `Server-Version: ${data.version || 'unbekannt'}`;
 
         if (span) {
             span.textContent = text;
@@ -182,7 +201,7 @@ async function fetchServerVersion() {
             if (data.updateAvailable) {
                 btn.disabled = false;
                 btn.title = 'Neues Update von GitHub verfügbar';
-                btn.classList.add('update-available'); // optional für CSS
+                btn.classList.add('update-available');
             } else {
                 btn.disabled = false; // Update trotzdem erlauben
                 btn.title = 'Server ist aktuell';
@@ -190,16 +209,19 @@ async function fetchServerVersion() {
             }
         }
     } catch (err) {
-        console.error('Fehler beim Laden der Version:', err);
+        console.error('Konnte /api/version nicht laden:', err);
         if (span) {
-            span.textContent = 'Server-Version: unbekannt';
+            span.textContent = 'Server-Version: (Fehler beim Laden)';
         }
         if (btn) {
-            btn.title = 'Fehler beim Laden der Version';
+            btn.disabled = false;
+            btn.title = 'Fehler beim Prüfen auf Updates';
+            btn.classList.remove('update-available');
         }
     }
 }
 
+// Update-Button -> /api/update
 async function triggerServerUpdate() {
     if (!confirm('Server-Update wirklich starten?')) {
         return;
@@ -230,8 +252,8 @@ async function triggerServerUpdate() {
             alert('Update konnte nicht gestartet werden: ' + (data.message || 'Unbekannter Fehler'));
         }
     } catch (err) {
-        console.error('Fehler bei /api/update:', err);
-        alert('Fehler beim Starten des Updates. Siehe Konsole/Server-Log.');
+        console.error('[triggerServerUpdate] Fehler:', err);
+        alert('Update fehlgeschlagen (Netzwerkfehler?).');
     } finally {
         if (btn) {
             btn.disabled = false;
@@ -240,28 +262,20 @@ async function triggerServerUpdate() {
     }
 }
 
-// -----------------------------
-// Event-Handler
-// -----------------------------
+// -----------------------------------------------------------------------------
+// Initialisierung beim Laden der Seite
+// -----------------------------------------------------------------------------
 
-// Beim Laden der Seite
 document.addEventListener('DOMContentLoaded', () => {
-    // Version + Tags vom Server holen
+    // Version / Update-Status laden
     fetchServerVersion();
 
-    // Verzeichnisse laden (Root)
+    // Dateibrowser starten
     loadCurrentDirectory();
 
-    // Update-Button verkabeln
+    // Update-Button verbinden
     const btn = document.getElementById('btn-update-server');
     if (btn) {
         btn.addEventListener('click', triggerServerUpdate);
-    }
-});
-
-// Zurück-Button (falls irgendwo im HTML vorhanden)
-document.addEventListener('click', function(event) {
-    if (event.target.matches('.back-button')) {
-        window.location.href = '/';
     }
 });

@@ -1,5 +1,5 @@
 {
-  "name": "NodeServer",
+  "name": "NodeViewServer",
   "version": "1.0.0",
   "main": "auth.js",
   "dependencies": {
