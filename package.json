@@ -22,7 +22,7 @@
     "start": "node server.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "Axel Fischer",
   "license": "ISC",
   "description": "",
   "devDependencies": {
