@@ -231,7 +231,7 @@ async function fetchServerVersion() {
     }
 }
 
-// Update-Button -> /api/update
+// Update-Button -> /api/update + danach Logout
 async function triggerServerUpdate() {
     if (!confirm('Server-Update wirklich starten?')) {
         return;
@@ -254,10 +254,19 @@ async function triggerServerUpdate() {
         const data = await res.json().catch(() => ({}));
 
         if (res.status === 202 && data.ok) {
-            alert('Update wurde gestartet. Der Server kann sich gleich neu starten.');
+            alert('Update wurde gestartet. Der Server kann sich gleich neu starten.\nDu wirst jetzt abgemeldet.');
 
-            // Nach ein paar Sekunden nochmal Version prüfen
-            setTimeout(fetchServerVersion, 5000);
+            // Versuche, den Nutzer sauber abzumelden
+            try {
+                await fetch('/logout', {
+                    method: 'POST'
+                });
+            } catch (logoutErr) {
+                console.warn('[triggerServerUpdate] Logout-Fehler (evtl. wegen Neustart):', logoutErr);
+            }
+
+            // Zur Login-Seite zurück
+            window.location.href = '/';
         } else {
             alert('Update konnte nicht gestartet werden: ' + (data.message || 'Unbekannter Fehler'));
         }
@@ -265,9 +274,12 @@ async function triggerServerUpdate() {
         console.error('[triggerServerUpdate] Fehler:', err);
         alert('Update fehlgeschlagen (Netzwerkfehler?).');
     } finally {
-        if (btn) {
-            btn.disabled = false;
-            btn.textContent = 'Server-Update ausführen';
+        // Falls wir NICHT weitergeleitet wurden (Update fehlgeschlagen),
+        // Button wieder freigeben
+        const btn2 = document.getElementById('btn-update-server');
+        if (btn2) {
+            btn2.disabled = false;
+            btn2.textContent = 'Server-Update ausführen';
         }
     }
 }
