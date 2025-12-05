@@ -188,23 +188,32 @@ async function fetchServerVersion() {
         }
 
         const data = await res.json();
+        console.log('[fetchServerVersion] /api/version ->', data);
 
-        // Einfacher Text mit Version
-        const text = `Server-Version: ${data.version || 'unbekannt'}`;
+        const baseText = `Server-Version: ${data.version || 'unbekannt'}`;
 
-        if (span) {
-            span.textContent = text;
-        }
+        if (data.updateAvailable) {
+            // Deutlicher, sichtbarer Hinweis im Text
+            if (span) {
+                span.textContent = `${baseText} – ✨ NEUES Update verfügbar!`;
+            }
 
-        // Button-Zustand je nach updateAvailable
-        if (btn) {
-            if (data.updateAvailable) {
+            if (btn) {
                 btn.disabled = false;
                 btn.title = 'Neues Update von GitHub verfügbar';
+                btn.textContent = 'Update verfügbar – jetzt installieren';
                 btn.classList.add('update-available');
-            } else {
-                btn.disabled = false; // Update trotzdem erlauben
-                btn.title = 'Server ist aktuell';
+            }
+        } else {
+            if (span) {
+                span.textContent = `${baseText} – Server ist aktuell`;
+            }
+
+            if (btn) {
+                // Du kannst trotzdem ein manuelles Update erlauben, wenn du möchtest
+                btn.disabled = false;
+                btn.title = 'Server ist aktuell (Update erzwingen möglich)';
+                btn.textContent = 'Server-Update ausführen';
                 btn.classList.remove('update-available');
             }
         }
@@ -216,6 +225,7 @@ async function fetchServerVersion() {
         if (btn) {
             btn.disabled = false;
             btn.title = 'Fehler beim Prüfen auf Updates';
+            btn.textContent = 'Server-Update ausführen';
             btn.classList.remove('update-available');
         }
     }
