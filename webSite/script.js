@@ -176,9 +176,14 @@ async function deleteFile(fileName) {
 async function fetchServerVersion() {
     const span = document.getElementById('server-version');
     const btn = document.getElementById('btn-update-server');
+    const details = document.getElementById('update-details'); // NEU im HTML
 
     if (span) {
         span.textContent = 'Server-Version wird geladen...';
+    }
+    if (details) {
+        details.textContent = '';
+        details.style.display = 'none';
     }
 
     try {
@@ -188,34 +193,27 @@ async function fetchServerVersion() {
         }
 
         const data = await res.json();
-        console.log('[fetchServerVersion] /api/version ->', data);
 
-        const baseText = `Server-Version: ${data.version || 'unbekannt'}`;
+        const text = `Server-Version: ${data.version || 'unbekannt'}`;
+        if (span) {
+            span.textContent = text;
+        }
 
-        if (data.updateAvailable) {
-            // Deutlicher, sichtbarer Hinweis im Text
-            if (span) {
-                span.textContent = `${baseText} – ✨ NEUES Update verfügbar!`;
-            }
-
-            if (btn) {
+        if (btn) {
+            if (data.updateAvailable) {
                 btn.disabled = false;
                 btn.title = 'Neues Update von GitHub verfügbar';
-                btn.textContent = 'Update verfügbar – jetzt installieren';
                 btn.classList.add('update-available');
-            }
-        } else {
-            if (span) {
-                span.textContent = `${baseText} – Server ist aktuell`;
-            }
-
-            if (btn) {
-                // Du kannst trotzdem ein manuelles Update erlauben, wenn du möchtest
+            } else {
                 btn.disabled = false;
-                btn.title = 'Server ist aktuell (Update erzwingen möglich)';
-                btn.textContent = 'Server-Update ausführen';
+                btn.title = 'Server ist aktuell';
                 btn.classList.remove('update-available');
             }
+        }
+
+        if (details && data.updateAvailable && data.latestMessage) {
+            details.textContent = 'Änderungen: ' + data.latestMessage;
+            details.style.display = 'block';
         }
     } catch (err) {
         console.error('Konnte /api/version nicht laden:', err);
@@ -225,7 +223,6 @@ async function fetchServerVersion() {
         if (btn) {
             btn.disabled = false;
             btn.title = 'Fehler beim Prüfen auf Updates';
-            btn.textContent = 'Server-Update ausführen';
             btn.classList.remove('update-available');
         }
     }

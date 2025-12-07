@@ -126,30 +126,46 @@ function resolveTargetPath(relativePath, req) {
 // -----------------------------------------------------------------------------
 // Helper: Git-Update-Status prüfen (nur Commits, keine Tags)
 //  -> git fetch --quiet && git rev-parse HEAD && git rev-parse @{u}
-//     Wenn HEAD != @{u} => es gibt neuere Commits auf dem Remote
+//     + git log -1 --pretty=format:%s @{u}
 // -----------------------------------------------------------------------------
 function checkForUpdate() {
   return new Promise((resolve) => {
-    const cmd = 'git fetch --quiet && git rev-parse HEAD && git rev-parse @{u}';
+    const cmd = [
+      'git fetch --quiet',
+      'git rev-parse HEAD',
+      'git rev-parse @{u}',
+      'git log -1 --pretty=format:%s @{u}'
+    ].join(' && ');
 
     exec(cmd, { cwd: __dirname }, (err, stdout) => {
       if (err) {
         console.warn('[checkForUpdate] Fehler:', err.message);
-        return resolve(null); // "konnte nicht prüfen"
+        return resolve({ updateAvailable: false, latestMessage: null });
       }
 
-      const lines = stdout.trim().split('\n');
-      if (lines.length < 2) return resolve(null);
+      const lines = String(stdout).trim().split('\n');
+      if (lines.length < 3) {
+        return resolve({ updateAvailable: false, latestMessage: null });
+      }
 
-      const local = lines[0].trim();
-      const remote = lines[1].trim();
+      const local = lines[0].trim();   // HEAD
+      const remote = lines[1].trim();  // @{u}
+      const message = lines.slice(2).join('\n').trim(); // Commit-Subject
 
-      if (!local || !remote) return resolve(null);
+      if (!local || !remote) {
+        return resolve({ updateAvailable: false, latestMessage: null });
+      }
 
       const different = local !== remote;
-      console.log('[checkForUpdate] local =', local, 'remote =', remote, 'different =', different);
+      console.log('[checkForUpdate] local =', local,
+                  'remote =', remote,
+                  'different =', different,
+                  'message =', message);
 
-      resolve(different); // true => es gibt neuere Commits
+      resolve({
+        updateAvailable: different,
+        latestMessage: different ? message : null
+      });
     });
   });
 }
@@ -331,12 +347,13 @@ router.post('/api/delete', auth.requireAuthApi, async (req, res) => {
 // -----------------------------------------------------------------------------
 router.get('/api/version', auth.requireAuthApi, async (req, res) => {
   try {
-    const updateByCommits = await checkForUpdate();
-    const updateAvailable = updateByCommits === true;
+    const info = await checkForUpdate();
+    const updateAvailable = info && info.updateAvailable === true;
 
     res.json({
       version: pkg.version || 'unknown',
-      updateAvailable
+      updateAvailable,
+      latestMessage: info && info.latestMessage ? info.latestMessage : null
     });
   } catch (err) {
     console.error('[api/version] Fehler:', err);
