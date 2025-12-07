@@ -179,7 +179,7 @@ main {
 }
 
 .login-card {
-    background: rgba(255, 255, 255, 0.92);
+    background: none;
     border-radius: 16px;
     box-shadow: 0 14px 28px #00000030, 0 10px 10px #00000022;
     padding: 32px 36px;
