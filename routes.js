@@ -13,16 +13,17 @@ const pkg = require('./package.json'); // Version aus package.json
 
 const router = express.Router();
 
+const trustProxy = !!config.trustProxy;
+
 // -----------------------------------------------------------------------------
 // IP-Whitelist Middleware
 // -----------------------------------------------------------------------------
 function ipWhitelist(req, res, next) {
-  const clientIpRaw =
-    (req.headers['x-forwarded-for'] ||
-      req.connection.remoteAddress ||
-      '')
-      .split(',')[0]
-      .trim();
+  const remoteAddr = (req.connection && req.connection.remoteAddress) || req.socket.remoteAddress || '';
+  const forwardedFor = req.headers['x-forwarded-for'];
+  const clientIpRaw = trustProxy && forwardedFor
+    ? forwardedFor.split(',')[0].trim()
+    : remoteAddr;
 
   let clientIp = clientIpRaw;
   if (clientIpRaw.startsWith('::ffff:')) {
@@ -119,8 +120,24 @@ function resolveTargetPath(relativePath, req) {
   const base = root.path;
   const target = path.resolve(base, parts.join('/'));
 
-  if (!target.startsWith(base)) return null;
-  return target;
+  if (target !== base && !target.startsWith(base + path.sep)) return null;
+  return { target, base };
+}
+
+// Realpath-Validierung verhindert Symlink-Traversal
+async function resolveAndValidatePath(relativePath, req) {
+  const resolved = resolveTargetPath(relativePath, req);
+  if (!resolved) return null;
+
+  const realPath = await fs.realpath(resolved.target).catch(() => null);
+  if (!realPath) return null;
+
+  const base = path.resolve(resolved.base);
+  if (realPath !== base && !realPath.startsWith(base + path.sep)) {
+    return null;
+  }
+
+  return { target: resolved.target, realPath, base };
 }
 
 // -----------------------------------------------------------------------------
@@ -226,25 +243,25 @@ router.get('/api/list', auth.requireAuthApi, async (req, res) => {
       });
     }
 
-    const targetPath = resolveTargetPath(relativePath, req);
-    console.log('[api/list] targetPath =', targetPath);
+    const resolved = await resolveAndValidatePath(relativePath, req);
+    console.log('[api/list] resolved =', resolved);
 
-    if (!targetPath) {
+    if (!resolved) {
       return res.status(400).json({ error: 'Ungültiger Pfad' });
     }
 
-    const stat = await fs.stat(targetPath).catch(() => null);
+    const stat = await fs.stat(resolved.realPath).catch(() => null);
     if (!stat || !stat.isDirectory()) {
       return res.status(404).json({ error: 'Verzeichnis nicht gefunden' });
     }
 
-    const entries = await fs.readdir(targetPath, { withFileTypes: true });
+    const entries = await fs.readdir(resolved.realPath, { withFileTypes: true });
 
     const folderNames = entries
       .filter(e => e.isDirectory() && !e.name.startsWith('.'))
       .map(e => e.name);
 
-    const allSortedNames = await sortFilesByMTime(targetPath);
+    const allSortedNames = await sortFilesByMTime(resolved.realPath);
     const folderSet = new Set(folderNames);
     const fileNames = allSortedNames.filter(name => !folderSet.has(name));
 
@@ -274,26 +291,26 @@ router.get('/api/file', auth.requireAuthApi, async (req, res) => {
       return res.status(400).json({ error: 'path fehlt' });
     }
 
-    const absPath = resolveTargetPath(relativePath, req);
-    console.log('[api/file] absPath =', absPath);
+    const resolved = await resolveAndValidatePath(relativePath, req);
+    console.log('[api/file] resolved =', resolved);
 
-    if (!absPath) {
+    if (!resolved) {
       console.log('[api/file] resolveTargetPath -> null');
       return res.status(400).json({ error: 'Ungültiger Pfad' });
     }
 
-    const stat = await fs.stat(absPath).catch(err => {
+    const stat = await fs.stat(resolved.realPath).catch(err => {
       console.log('[api/file] fs.stat error:', err.message);
       return null;
     });
 
     if (!stat || !stat.isFile()) {
-      console.log('[api/file] Kein File an Pfad:', absPath);
+      console.log('[api/file] Kein File an Pfad:', resolved.realPath);
       return res.status(404).json({ error: 'Datei nicht gefunden' });
     }
 
-    console.log('[api/file] Sende Datei:', absPath);
-    return res.sendFile(absPath);
+    console.log('[api/file] Sende Datei:', resolved.realPath);
+    return res.sendFile(resolved.realPath);
   } catch (err) {
     console.error('[api/file] Fehler beim Senden:', err);
     res.status(500).json({ error: 'Fehler beim Senden der Datei' });
@@ -315,13 +332,13 @@ router.post('/api/delete', auth.requireAuthApi, async (req, res) => {
 
   for (const relPath of paths) {
     try {
-      const absPath = resolveTargetPath(relPath, req);
-      if (!absPath) {
+      const resolved = await resolveAndValidatePath(relPath, req);
+      if (!resolved) {
         failed.push({ path: relPath, reason: 'Ungültiger Pfad' });
         continue;
       }
 
-      const stat = await fs.stat(absPath).catch(() => null);
+      const stat = await fs.stat(resolved.realPath).catch(() => null);
       if (!stat) {
         failed.push({ path: relPath, reason: 'Datei existiert nicht' });
         continue;
@@ -332,7 +349,7 @@ router.post('/api/delete', auth.requireAuthApi, async (req, res) => {
         continue;
       }
 
-      await fs.unlink(absPath);
+      await fs.unlink(resolved.realPath);
       deleted.push(relPath);
     } catch (err) {
       failed.push({ path: relPath, reason: err.message });

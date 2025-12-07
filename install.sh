@@ -35,7 +35,7 @@ fi
 
 # 3) User-Input
 read -p "HTTP-Port [3000]: " PORT
-PORT=${PORT:-9092}
+PORT=${PORT:-3000}
 
 read -p "Basis-Pfad / Root-Verzeichnis [/home]: " BASE_PATH
 BASE_PATH=${BASE_PATH:-/home}

@@ -11,6 +11,11 @@ const config = require('./config');
 
 const app = express();
 
+// Optional: wenn hinter Proxy/Load-Balancer
+if (config.trustProxy) {
+  app.set('trust proxy', 1);
+}
+
 // 1) Bodyparser
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
@@ -24,8 +29,9 @@ app.use(session({
   rolling: true,
   cookie: {
     httpOnly: true,
-    maxAge: 1000 * 60 * 60 * 24 * 7 // 7 Tage
-    // secure: true, sameSite: 'lax' -> für reines HTTPS/öffentlichen Betrieb
+    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 Tage
+    sameSite: 'lax',
+    secure: process.env.NODE_ENV === 'production'
   }
 }));
 
@@ -37,11 +43,11 @@ const loginLimiter = rateLimit({
 });
 app.use('/login', loginLimiter);
 
-// 4) Statisches Frontend
-app.use(express.static(path.join(__dirname, 'webSite')));
-
-// 5) Alle Routen (Browser + API)
+// 4) Alle Routen (Browser + API)
 app.use('/', routes);
+
+// 5) Statisches Frontend (nach Routen, damit /main.html nicht Auth umgeht)
+app.use(express.static(path.join(__dirname, 'webSite')));
 
 // 6) Fehler-Handler
 app.use((err, req, res, next) => {
