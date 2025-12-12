@@ -4,18 +4,12 @@
   "main": "auth.js",
   "dependencies": {
     "bcrypt": "^6.0.0",
-    "body-parser": "^2.2.0",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "express-rate-limit": "^8.2.1",
     "express-session": "^1.18.2",
-    "random-bytes": "^1.0.0",
     "serve-index": "^1.9.1",
-    "webidl-conversions": "^3.0.1",
-    "whatwg-url": "^5.0.0",
-    "wide-align": "^1.1.5",
-    "wrappy": "^1.0.2",
-    "yallist": "^4.0.0"
+    "whatwg-url": "^5.0.0"
   },
   "scripts": {
     "test": "echo \"Error: no test specified\" && exit 1",

@@ -5,9 +5,25 @@ const express = require('express');
 const session = require('express-session');
 const rateLimit = require('express-rate-limit');
 const path = require('path');
+const fs = require('fs');
+
+// Sicherstellen, dass config.js vorhanden ist
+const configPath = path.join(__dirname, 'config.js');
+if (!fs.existsSync(configPath)) {
+  console.error('config.js fehlt. Bitte install.sh ausführen, um die Konfiguration zu erzeugen.');
+  process.exit(1);
+}
+
+const config = require(configPath);
+
+// Session-Secret erzwingen – ohne Secret kein Start
+const sessionSecret = config.sessionSecret || process.env.SESSION_SECRET;
+if (!sessionSecret || !String(sessionSecret).trim()) {
+  console.error('SESSION_SECRET ist nicht gesetzt. Bitte install.sh ausführen oder ein Session-Secret hinterlegen.');
+  process.exit(1);
+}
 
 const routes = require('./routes');
-const config = require('./config');
 
 const app = express();
 
@@ -23,7 +39,7 @@ app.use(express.urlencoded({ extended: true }));
 // 2) Session (MUSS vor /api!)
 app.use(session({
   name: 'nodeView.sid',
-  secret: process.env.SESSION_SECRET || 'dev-secret-only-for-local',
+  secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
   rolling: true,

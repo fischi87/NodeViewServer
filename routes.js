@@ -74,6 +74,17 @@ Object.keys(config.directories).forEach(dir => {
 router.post('/login', (req, res) => auth.login(req, res));
 router.post('/logout', (req, res) => auth.logout(req, res));
 
+// Auth-Status für Clients: prüft Session ohne Redirects
+router.get('/api/auth/status', (req, res) => {
+  if (req.session && req.session.loggedIn) {
+    return res.json({
+      authenticated: true,
+      user: req.session.username || null
+    });
+  }
+  return res.status(401).json({ authenticated: false });
+});
+
 // Login-Seite
 router.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'webSite', 'login.html'));
