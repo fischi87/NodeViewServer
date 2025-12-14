@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,10 +9,10 @@
     <script>
         async function handleLogin(event) {
             event.preventDefault();
-    
+
             const username = document.getElementById('username').value;
             const password = document.getElementById('password').value;
-    
+
             const response = await fetch('/login', {
                 method: 'POST',
                 headers: {
@@ -19,7 +20,7 @@
                 },
                 body: JSON.stringify({ username, password }) // Sende die Daten als JSON
             });
-    
+
             if (response.ok) {
                 window.location.href = '/main.html'; // Weiterleitung zur main.html
             } else {
@@ -29,17 +30,26 @@
         }
     </script>
 </head>
+
 <body>
-    <main>
-        <section class="login-card">
+    <main class="container login-main">
+        <section class="glass-card login-card">
+            <h2>Willkommen</h2>
             <form onsubmit="handleLogin(event)">
-                <input type="text" id="username" name="username" required placeholder="User">
-
-                <input type="password" id="password" name="password" required placeholder="Passwort">
-
-                <button type="submit">Anmelden</button>
+                <div class="input-group">
+                    <input type="text" id="username" name="username" class="modern-input" required placeholder=" "
+                        autocomplete="username">
+                    <label for="username" class="floating-label">Benutzername</label>
+                </div>
+                <div class="input-group">
+                    <input type="password" id="password" name="password" class="modern-input" required placeholder=" "
+                        autocomplete="current-password">
+                    <label for="password" class="floating-label">Passwort</label>
+                </div>
+                <button type="submit" class="btn">Anmelden</button>
             </form>
         </section>
     </main>
 </body>
+
 </html>

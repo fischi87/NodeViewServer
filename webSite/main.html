@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="de">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -9,38 +10,39 @@
 </head>
 
 <body>
-<header class="page-header">
-    <h1 class="fancy-heading">NodeViewServer</h1>
+    <header class="page-header">
+        <h1 class="fancy-heading">NodeViewServer</h1>
 
-    <div id="update-info" class="update-info">
-        <span id="server-version">Version wird geladen...</span>
-        <button id="btn-update-server" class="update-button" type="button">
-            Server-Update
-        </button>
-    </div>
-    <div id="update-details"
-         style="margin-top:6px; text-align:center; font-size:0.9rem; color:#444; display:none;">
-    </div>
-</header>
+        <div id="update-info" class="update-info">
+            <span id="server-version">Version wird geladen...</span>
+            <button id="btn-update-server" class="btn btn-link" type="button">
+                Server-Update
+            </button>
+        </div>
+        <div id="update-details"
+            style="margin-top:6px; text-align:center; font-size:0.9rem; color:var(--text-muted); display:none;">
+        </div>
+    </header>
 
-<main class="container">
-    
-    <!-- Verzeichnisse -->
-    <section id="directories" class="directory-list">
-        <!-- Wird dynamisch aus script.js gefüllt -->
-    </section>
+    <main class="container">
 
-    <!-- Logout unten fixiert -->
-    <div class="logout-container">
-        <form id="logoutForm" action="/logout" method="POST">
-            <button class="logout-button" type="submit">Abmelden</button>
-        </form>
-    </div>
+        <!-- Verzeichnisse -->
+        <section id="directories">
+            <!-- Wird dynamisch aus script.js gefüllt -->
+        </section>
 
-</main>
+        <!-- Logout unten fixiert -->
+        <div class="logout-container">
+            <form id="logoutForm" action="/logout" method="POST">
+                <button class="btn btn-link" type="submit">Abmelden</button>
+            </form>
+        </div>
 
-<footer class="footer">
-    <p>&copy; NodeViewServer</p>
-</footer>
+    </main>
+
+    <footer class="footer">
+        <p>&copy; NodeViewServer</p>
+    </footer>
 </body>
+
 </html>
