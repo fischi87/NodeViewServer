@@ -16,6 +16,20 @@ if (!fs.existsSync(configPath)) {
 
 const config = require(configPath);
 
+// OVERLAY: Prüfen auf .ssl-config.json (Migration für bestehende Nutzer)
+const sslConfigPath = path.join(__dirname, '.ssl-config.json');
+if (fs.existsSync(sslConfigPath)) {
+  try {
+    const sslOverlay = require(sslConfigPath);
+    if (sslOverlay && sslOverlay.ssl) {
+      console.log('Lade SSL-Konfiguration aus .ssl-config.json');
+      config.ssl = sslOverlay.ssl;
+    }
+  } catch (err) {
+    console.error('Fehler beim Laden von .ssl-config.json:', err);
+  }
+}
+
 // Session-Secret erzwingen – ohne Secret kein Start
 const sessionSecret = config.sessionSecret || process.env.SESSION_SECRET;
 if (!sessionSecret || !String(sessionSecret).trim()) {
@@ -71,7 +85,30 @@ app.use((err, req, res, next) => {
   res.status(500).send('Interner Serverfehler');
 });
 
-// 7) Start
-app.listen(config.port, () => {
-  console.log(`HTTP-Server läuft auf http://localhost:${config.port}`);
-});
+// 7) Start (nur wenn direkt ausgeführt)
+if (require.main === module) {
+  if (config.ssl && config.ssl.enabled) {
+    const fs = require('fs');
+    const https = require('https');
+
+    try {
+      const options = {
+        key: fs.readFileSync(path.resolve(__dirname, config.ssl.key)),
+        cert: fs.readFileSync(path.resolve(__dirname, config.ssl.cert))
+      };
+
+      https.createServer(options, app).listen(config.port, () => {
+        console.log(`HTTPS-Server läuft auf https://localhost:${config.port}`);
+      });
+    } catch (err) {
+      console.error('Fehler beim Starten des HTTPS-Servers:', err.message);
+      process.exit(1);
+    }
+  } else {
+    app.listen(config.port, () => {
+      console.log(`HTTP-Server läuft auf http://localhost:${config.port}`);
+    });
+  }
+}
+
+module.exports = app;
