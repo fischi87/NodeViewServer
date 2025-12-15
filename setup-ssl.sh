@@ -40,6 +40,9 @@ if [[ "$USE_HTTPS" =~ ^[Yy]$ ]]; then
     fi
 
     # Zertifikat mit passendem CN erstellen
+    echo "Lösche alte Zertifikate..."
+    rm -f .ssl/key.pem .ssl/cert.pem
+    
     openssl req -x509 -newkey rsa:4096 -keyout .ssl/key.pem -out .ssl/cert.pem -days 365 -nodes -subj "/CN=$CERT_CN" 2>/dev/null
 
     SSL_KEY_PATH=".ssl/key.pem"
