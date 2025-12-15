@@ -67,7 +67,25 @@ Node-Abhängigkeiten
 * paths.json (Startverzeichnis)
 * optional PM2 + Autostart
 
-Server starten
+* optional PM2 + Autostart
+
+### 🔒 HTTPS Einrichten (Wichtig für iOS!)
+
+Da moderne iOS-Apps (wie NodeView) zwingend HTTPS erfordern, solltest du ein SSL-Zertifikat einrichten.
+
+```bash
+chmod +x setup-ssl.sh
+./setup-ssl.sh
+```
+
+Das Skript führt dich durch die Einrichtung:
+1. Es erstellt ein **selbstsigniertes Zertifikat** (inklusiv Domain-Namen für iOS-Kompatibilität).
+2. Es speichert die Pfade in `.ssl-config.json`.
+3. Nach einem Neustart (`pm2 restart nodeviewserver` oder `npm start`) ist der Server per HTTPS erreichbar.
+
+> **Tipp:** Wenn du eine eigene Domain hast, kannst du auch "Let's Encrypt" verwenden. Das Skript unterstützt aber aktuell primär die schnelle Einrichtung selbstsignierter Zertifikate für den privaten Gebrauch.
+
+### Server starten
 
 Ohne PM2: 
 
