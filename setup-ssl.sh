@@ -39,11 +39,31 @@ if [[ "$USE_HTTPS" =~ ^[Yy]$ ]]; then
       exit 1
     fi
 
-    # Zertifikat mit passendem CN erstellen
     echo "Lösche alte Zertifikate..."
     rm -f .ssl/key.pem .ssl/cert.pem
     
-    openssl req -x509 -newkey rsa:4096 -keyout .ssl/key.pem -out .ssl/cert.pem -days 365 -nodes -subj "/CN=$CERT_CN" 2>/dev/null
+    # OpenSSL Config für SAN (Subject Alternative Name) erstellen
+    # Das ist für iOS notwendig (nur CN reicht oft nicht mehr).
+    cat > .ssl/openssl.cnf <<EOF
+[req]
+distinguished_name = req_distinguished_name
+x509_extensions = v3_req
+prompt = no
+
+[req_distinguished_name]
+CN = $CERT_CN
+
+[v3_req]
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = $CERT_CN
+EOF
+
+    # Zertifikat mit SAN generieren
+    openssl req -x509 -newkey rsa:4096 -keyout .ssl/key.pem -out .ssl/cert.pem -days 365 -nodes -config .ssl/openssl.cnf 2>/dev/null
 
     SSL_KEY_PATH=".ssl/key.pem"
     SSL_CERT_PATH=".ssl/cert.pem"
