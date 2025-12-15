@@ -27,7 +27,10 @@ if [[ "$USE_HTTPS" =~ ^[Yy]$ ]]; then
   SSL_CHOICE=${SSL_CHOICE:-1}
 
   if [ "$SSL_CHOICE" == "1" ]; then
-    echo "Generiere selbstsigniertes Zertifikat in .ssl/ ..."
+    read -p "Hostname für das Zertifikat (z.B. meinserver.de oder IP) [NodeViewServer]: " CERT_CN
+    CERT_CN=${CERT_CN:-NodeViewServer}
+
+    echo "Generiere selbstsigniertes Zertifikat für '$CERT_CN' in .ssl/ ..."
     mkdir -p .ssl
     
     # Check openssl
@@ -36,7 +39,8 @@ if [[ "$USE_HTTPS" =~ ^[Yy]$ ]]; then
       exit 1
     fi
 
-    openssl req -x509 -newkey rsa:4096 -keyout .ssl/key.pem -out .ssl/cert.pem -days 365 -nodes -subj "/CN=NodeViewServer" 2>/dev/null
+    # Zertifikat mit passendem CN erstellen
+    openssl req -x509 -newkey rsa:4096 -keyout .ssl/key.pem -out .ssl/cert.pem -days 365 -nodes -subj "/CN=$CERT_CN" 2>/dev/null
 
     SSL_KEY_PATH=".ssl/key.pem"
     SSL_CERT_PATH=".ssl/cert.pem"

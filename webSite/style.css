@@ -228,15 +228,15 @@ input:-webkit-autofill:active {
 /* --- Buttons --- */
 
 .btn {
-    width: 60%;
+    width: 100%;
     display: block;
     margin: 1rem auto 0 auto;
     padding: 1rem;
 
     /* Premium Gradient */
-    background: var(--accent-gradient);
+    background: none;
     /* Contrast Color from BG Base */
-    color: #0f0c29;
+    color: var(--text-main);
 
     font-family: var(--font-heading);
     font-weight: 700;
