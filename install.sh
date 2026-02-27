@@ -281,9 +281,19 @@ else
   echo "  npm start"
 fi
 
+PROTOCOL="http"
+if [[ "$SSL_ENABLED" == "true" ]]; then
+  PROTOCOL="https"
+fi
+
 echo
 echo "Zugriff im Browser:"
-echo "  http://<SERVER-IP>:${PORT}"
+echo "  ${PROTOCOL}://<SERVER-IP>:${PORT}"
+if [[ "$SSL_ENABLED" == "true" ]]; then
+  echo
+  echo "Hinweis: Das selbstsignierte Zertifikat muss im Browser/iOS einmalig"
+  echo "  akzeptiert werden (Sicherheitswarnung bestätigen)."
+fi
 echo
 echo "Login:"
 echo "  Benutzer: ${USERNAME}"
