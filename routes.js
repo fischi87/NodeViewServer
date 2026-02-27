@@ -159,7 +159,7 @@ async function resolveAndValidatePath(relativePath, req) {
 function checkForUpdate() {
   return new Promise((resolve) => {
     const cmd = [
-      'git fetch --quiet',
+      'git -c credential.helper= fetch --quiet',
       'git rev-parse HEAD',
       'git rev-parse @{u}',
       'git log -1 --pretty=format:%s @{u}'
