@@ -174,57 +174,39 @@ async function deleteFile(fileName) {
 
 // /api/version -> Version + updateAvailable abfragen
 async function fetchServerVersion() {
-    const span = document.getElementById('server-version');
-    const btn = document.getElementById('btn-update-server');
-    const details = document.getElementById('update-details'); // NEU im HTML
+    const versionEl = document.getElementById('server-version');
+    const badge     = document.getElementById('update-badge');
+    const banner    = document.getElementById('update-banner');
+    const details   = document.getElementById('update-details');
+    const btn       = document.getElementById('btn-update-server');
 
-    if (span) {
-        span.textContent = 'Server-Version wird geladen...';
-    }
-    if (details) {
-        details.textContent = '';
-        details.style.display = 'none';
-    }
+    // Lade-Zustand
+    if (versionEl) versionEl.textContent = 'lädt …';
+    if (badge)     { badge.textContent = '⏳'; badge.className = 'update-badge'; }
+    if (banner)    banner.style.display = 'none';
 
     try {
         const res = await fetch('/api/version');
-        if (!res.ok) {
-            throw new Error('HTTP ' + res.status);
-        }
+        if (!res.ok) throw new Error('HTTP ' + res.status);
 
         const data = await res.json();
 
-        const text = `Server-Version: ${data.version || 'unbekannt'}`;
-        if (span) {
-            span.textContent = text;
-        }
+        if (versionEl) versionEl.textContent = `v${data.version || '?'}`;
 
-        if (btn) {
-            if (data.updateAvailable) {
-                btn.disabled = false;
-                btn.title = 'Neues Update von GitHub verfügbar';
-                btn.classList.add('update-available');
-            } else {
-                btn.disabled = false;
-                btn.title = 'Server ist aktuell';
-                btn.classList.remove('update-available');
-            }
-        }
-
-        if (details && data.updateAvailable && data.latestMessage) {
-            details.textContent = 'Änderungen: ' + data.latestMessage;
-            details.style.display = 'block';
+        if (data.updateAvailable) {
+            // Update verfügbar → Badge + Banner anzeigen
+            if (badge) { badge.textContent = '↑ Update'; badge.className = 'update-badge is-available'; }
+            if (details) details.textContent = data.latestMessage ? `Änderungen: ${data.latestMessage}` : '';
+            if (banner) banner.style.display = 'flex';
+            if (btn)    { btn.disabled = false; btn.textContent = '↑ Jetzt aktualisieren'; }
+        } else {
+            // Aktuell → grünes Badge, kein Banner
+            if (badge) { badge.textContent = '✓ Aktuell'; badge.className = 'update-badge is-ok'; }
         }
     } catch (err) {
         console.error('Konnte /api/version nicht laden:', err);
-        if (span) {
-            span.textContent = 'Server-Version: (Fehler beim Laden)';
-        }
-        if (btn) {
-            btn.disabled = false;
-            btn.title = 'Fehler beim Prüfen auf Updates';
-            btn.classList.remove('update-available');
-        }
+        if (versionEl) versionEl.textContent = 'v?';
+        if (badge)     { badge.textContent = '– –'; badge.className = 'update-badge is-error'; }
     }
 }
 
@@ -276,7 +258,7 @@ async function triggerServerUpdate() {
         const btn2 = document.getElementById('btn-update-server');
         if (btn2) {
             btn2.disabled = false;
-            btn2.textContent = 'Server-Update ausführen';
+            btn2.textContent = '↑ Jetzt aktualisieren';
         }
     }
 }
