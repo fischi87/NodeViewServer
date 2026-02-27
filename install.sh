@@ -1,4 +1,9 @@
 #!/usr/bin/env bash
+# Automatischer Fallback: falls mit `sh` statt `bash` aufgerufen,
+# wird das Script mit bash neu gestartet. Kein manueller Eingriff nötig.
+if [ -z "${BASH_VERSION:-}" ]; then
+  exec bash "$0" "$@"
+fi
 set -e
 
 echo "===================================="
@@ -123,20 +128,57 @@ if [[ "$USE_HTTPS" =~ ^[Yy]$ ]]; then
   SSL_CHOICE=${SSL_CHOICE:-1}
 
   if [ "$SSL_CHOICE" == "1" ]; then
-    echo "Generiere selbstsigniertes Zertifikat in .ssl/ ..."
-    mkdir -p .ssl
-    
     # Check openssl
     if ! command -v openssl >/dev/null 2>&1; then
       echo "Fehler: openssl ist nicht installiert. Kann kein Zertifikat erzeugen."
       exit 1
     fi
 
-    openssl req -x509 -newkey rsa:4096 -keyout .ssl/key.pem -out .ssl/cert.pem -days 365 -nodes -subj "/CN=NodeViewServer" 2>/dev/null
+    # Hostname/IP für SAN ermitteln (iOS 13+ und Browser benötigen Subject Alternative Names)
+    LOCAL_IP=$(hostname -I 2>/dev/null | awk '{print $1}')
+    DEFAULT_CN="${LOCAL_IP:-NodeViewServer}"
+    read -p "Hostname oder IP für das Zertifikat (SAN) [$DEFAULT_CN]: " CERT_CN
+    CERT_CN=${CERT_CN:-$DEFAULT_CN}
+
+    echo "Generiere selbstsigniertes Zertifikat mit SAN für '$CERT_CN' in .ssl/ ..."
+    mkdir -p .ssl
+
+    # OpenSSL-Konfiguration mit SAN erstellen
+    # DNS.1 = localhost als Fallback; IP.x / DNS.x je nach Eingabe
+    cat > .ssl/openssl.cnf <<SSLEOF
+[req]
+distinguished_name = req_distinguished_name
+x509_extensions = v3_req
+prompt = no
+
+[req_distinguished_name]
+CN = $CERT_CN
+
+[v3_req]
+keyUsage = nonRepudiation, digitalSignature, keyEncipherment
+extendedKeyUsage = serverAuth
+subjectAltName = @alt_names
+
+[alt_names]
+DNS.1 = localhost
+SSLEOF
+
+    # IP-Adresse oder Hostname als weiteren SAN eintragen
+    if [[ "$CERT_CN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      echo "IP.1 = $CERT_CN"   >> .ssl/openssl.cnf
+      echo "IP.2 = 127.0.0.1"  >> .ssl/openssl.cnf
+    else
+      echo "DNS.2 = $CERT_CN"  >> .ssl/openssl.cnf
+      echo "IP.1 = 127.0.0.1"  >> .ssl/openssl.cnf
+    fi
+
+    openssl req -x509 -newkey rsa:4096 \
+      -keyout .ssl/key.pem -out .ssl/cert.pem \
+      -days 365 -nodes -config .ssl/openssl.cnf 2>/dev/null
 
     SSL_KEY_PATH=".ssl/key.pem"
     SSL_CERT_PATH=".ssl/cert.pem"
-    echo "Zertifikat erstellt."
+    echo "Zertifikat erstellt (CN=$CERT_CN, mit SAN)."
   else
     read -p "Pfad zum Private Key (.key/.pem): " CUSTOM_KEY
     read -p "Pfad zum Certificate (.crt/.pem): " CUSTOM_CERT

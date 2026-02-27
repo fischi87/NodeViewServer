@@ -165,7 +165,14 @@ function checkForUpdate() {
       'git log -1 --pretty=format:%s @{u}'
     ].join(' && ');
 
-    exec(cmd, { cwd: __dirname }, (err, stdout) => {
+    exec(cmd, {
+      cwd: __dirname,
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: '0',   // Kein interaktiver Credential-Prompt (PM2 hat kein TTY)
+        GIT_ASKPASS: '/bin/echo'    // Gibt leeren String zurück statt zu hängen
+      }
+    }, (err, stdout) => {
       if (err) {
         console.warn('[checkForUpdate] Fehler:', err.message);
         return resolve({ updateAvailable: false, latestMessage: null });
