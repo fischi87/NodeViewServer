@@ -602,6 +602,233 @@ body::before {
   box-shadow: none;
 }
 
+/* ─── TOP BAR SETTINGS BUTTON ────────────────────────────────────────────── */
+
+.top-bar__btn-settings {
+  background: none;
+  border: 1px solid var(--border-strong);
+  color: var(--text-muted);
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.top-bar__btn-settings svg {
+  width: 16px;
+  height: 16px;
+}
+
+.top-bar__btn-settings:hover {
+  color: var(--text-main);
+  border-color: rgba(255, 255, 255, 0.22);
+  background: var(--bg-hover);
+}
+
+/* ─── SETTINGS MODAL ─────────────────────────────────────────────────────── */
+
+.settings-overlay {
+  display: none;
+  position: fixed;
+  inset: 0;
+  z-index: 100;
+  background: rgba(5, 5, 14, 0.82);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  align-items: center;
+  justify-content: center;
+  padding: 1.5rem;
+  animation: overlay-in 0.18s ease;
+}
+
+.settings-overlay.open { display: flex; }
+
+.settings-modal {
+  background: var(--bg-surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 560px;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: modal-up 0.2s ease;
+}
+
+.settings-modal__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.9rem 1.1rem;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.settings-modal__title {
+  font-family: var(--font-heading);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-main);
+}
+
+.settings-modal__body {
+  padding: 1.25rem 1.1rem;
+  overflow-y: auto;
+  flex: 1;
+}
+
+.settings-modal__footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.6rem;
+  padding: 0.85rem 1.1rem;
+  border-top: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.settings-section__label {
+  font-size: 0.65rem;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-dim);
+  margin-bottom: 0.6rem;
+}
+
+/* Pfade-Liste */
+.settings-paths-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.settings-path-row {
+  display: grid;
+  grid-template-columns: 130px 1fr auto;
+  align-items: center;
+  gap: 0.6rem;
+  background: rgba(255, 255, 255, 0.03);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.55rem 0.75rem;
+}
+
+.settings-path-row__name {
+  font-size: 0.82rem;
+  font-weight: 500;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-path-row__path {
+  font-family: var(--font-mono);
+  font-size: 0.75rem;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-path-row__del {
+  background: none;
+  border: 1px solid rgba(248, 113, 113, 0.2);
+  color: var(--danger);
+  width: 26px;
+  height: 26px;
+  border-radius: var(--radius-sm);
+  font-size: 0.75rem;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.15s;
+  flex-shrink: 0;
+}
+
+.settings-path-row__del:hover {
+  background: rgba(248, 113, 113, 0.1);
+  border-color: rgba(248, 113, 113, 0.4);
+}
+
+.settings-paths-empty {
+  font-size: 0.82rem;
+  color: var(--text-dim);
+  padding: 0.75rem 0;
+}
+
+/* Hinzufügen-Formular */
+.settings-add-form {
+  display: grid;
+  grid-template-columns: 130px 1fr auto;
+  gap: 0.6rem;
+  align-items: start;
+}
+
+.settings-add-btn {
+  background: var(--accent-dim);
+  border: 1px solid var(--accent-border);
+  color: var(--accent);
+  padding: 0.62rem 0.9rem;
+  border-radius: var(--radius-sm);
+  font-size: 0.82rem;
+  font-family: var(--font-body);
+  cursor: pointer;
+  transition: all 0.15s;
+  white-space: nowrap;
+}
+
+.settings-add-btn:hover {
+  background: rgba(34, 211, 238, 0.15);
+}
+
+/* Fehler */
+.settings-errors {
+  margin-top: 1rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.settings-error-item {
+  font-size: 0.78rem;
+  color: var(--danger);
+  background: rgba(248, 113, 113, 0.07);
+  border: 1px solid rgba(248, 113, 113, 0.15);
+  border-radius: var(--radius-sm);
+  padding: 0.4rem 0.7rem;
+}
+
+.settings-save-btn {
+  width: auto;
+  padding: 0.45rem 1.2rem;
+  margin-top: 0;
+  font-size: 0.85rem;
+}
+
+@media (max-width: 560px) {
+  .settings-add-form {
+    grid-template-columns: 1fr;
+  }
+
+  .settings-path-row {
+    grid-template-columns: 1fr auto;
+    grid-template-rows: auto auto;
+  }
+
+  .settings-path-row__path {
+    grid-column: 1;
+    grid-row: 2;
+  }
+}
+
 /* ─── FILE PREVIEW MODAL ─────────────────────────────────────────────────── */
 
 .preview-overlay {

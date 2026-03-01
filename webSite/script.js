@@ -421,6 +421,144 @@ async function triggerServerUpdate() {
   }
 }
 
+// ─── SETTINGS MODAL ──────────────────────────────────────────────────────────
+
+let settingsPaths = [];   // Arbeitskopie, noch nicht gespeichert
+
+function openSettingsModal() {
+  const overlay = document.getElementById('settings-overlay');
+  document.getElementById('settings-errors').innerHTML = '';
+  document.getElementById('settings-new-name').value = '';
+  document.getElementById('settings-new-path').value = '';
+
+  // Aktuelle Pfade vom Server laden
+  fetch('/api/paths')
+    .then(r => r.json())
+    .then(data => {
+      settingsPaths = Array.isArray(data.roots) ? data.roots.map(r => ({ ...r })) : [];
+      renderSettingsPaths();
+    })
+    .catch(() => {
+      settingsPaths = [];
+      renderSettingsPaths();
+    });
+
+  overlay.classList.add('open');
+}
+
+function closeSettingsModal() {
+  document.getElementById('settings-overlay').classList.remove('open');
+}
+
+function renderSettingsPaths() {
+  const list = document.getElementById('settings-paths-list');
+  list.innerHTML = '';
+
+  if (settingsPaths.length === 0) {
+    list.innerHTML = '<div class="settings-paths-empty">Keine Pfade konfiguriert.</div>';
+    return;
+  }
+
+  settingsPaths.forEach((root, i) => {
+    const row = document.createElement('div');
+    row.className = 'settings-path-row';
+    row.innerHTML = `
+      <span class="settings-path-row__name">${root.name}</span>
+      <span class="settings-path-row__path">${root.path}</span>
+      <button class="settings-path-row__del" aria-label="Entfernen" data-index="${i}">✕</button>
+    `;
+    row.querySelector('.settings-path-row__del').addEventListener('click', () => {
+      settingsPaths.splice(i, 1);
+      renderSettingsPaths();
+    });
+    list.appendChild(row);
+  });
+}
+
+function settingsAddPath() {
+  const nameEl = document.getElementById('settings-new-name');
+  const pathEl = document.getElementById('settings-new-path');
+  const name   = nameEl.value.trim();
+  const p      = pathEl.value.trim();
+
+  document.getElementById('settings-errors').innerHTML = '';
+
+  if (!name || !p) {
+    showSettingsError('Name und Pfad dürfen nicht leer sein.');
+    return;
+  }
+
+  if (settingsPaths.some(r => r.name === name)) {
+    showSettingsError(`Ein Eintrag mit dem Namen "${name}" existiert bereits.`);
+    return;
+  }
+
+  settingsPaths.push({ name, path: p });
+  renderSettingsPaths();
+  nameEl.value = '';
+  pathEl.value = '';
+  nameEl.focus();
+}
+
+async function saveSettings() {
+  const saveBtn = document.getElementById('settings-save');
+  document.getElementById('settings-errors').innerHTML = '';
+  saveBtn.disabled = true;
+  saveBtn.textContent = 'Speichern …';
+
+  try {
+    const res  = await fetch('/api/paths', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ roots: settingsPaths })
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok && res.status !== 207) {
+      showSettingsError(data.error || 'Speichern fehlgeschlagen.');
+      return;
+    }
+
+    // Partielle Fehler anzeigen (207)
+    if (Array.isArray(data.errors) && data.errors.length > 0) {
+      data.errors.forEach(e => showSettingsError(`"${e.name}" (${e.path}): ${e.reason}`));
+    }
+
+    // Sidebar mit den tatsächlich gespeicherten Pfaden neu laden
+    if (Array.isArray(data.roots)) {
+      settingsPaths = data.roots;
+      renderSettingsPaths();
+    }
+
+    if (res.ok || res.status === 207) {
+      closeSettingsModal();
+      await loadSidebar();
+      // Ersten Bereich neu auswählen falls aktueller Pfad nicht mehr existiert
+      const stillValid = sidebarRoots.some(r => currentPath === r.name || currentPath.startsWith(r.name + '/'));
+      if (!stillValid && sidebarRoots.length > 0) {
+        currentPath = sidebarRoots[0].name;
+      }
+      updateSidebarActive();
+      renderBreadcrumb();
+      renderFileList();
+    }
+  } catch (err) {
+    showSettingsError('Netzwerkfehler beim Speichern.');
+  } finally {
+    saveBtn.disabled = false;
+    saveBtn.textContent = 'Speichern';
+  }
+}
+
+function showSettingsError(msg) {
+  const container = document.getElementById('settings-errors');
+  const el = document.createElement('div');
+  el.className = 'settings-error-item';
+  el.textContent = msg;
+  container.appendChild(el);
+}
+
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -438,6 +576,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const btn = document.getElementById('btn-update-server');
   if (btn) btn.addEventListener('click', triggerServerUpdate);
+
+  // Settings Modal
+  document.getElementById('btn-settings')
+    ?.addEventListener('click', openSettingsModal);
+  document.getElementById('settings-close')
+    ?.addEventListener('click', closeSettingsModal);
+  document.getElementById('settings-cancel')
+    ?.addEventListener('click', closeSettingsModal);
+  document.getElementById('settings-save')
+    ?.addEventListener('click', saveSettings);
+  document.getElementById('settings-add-btn')
+    ?.addEventListener('click', settingsAddPath);
+
+  // Enter in den Add-Feldern
+  ['settings-new-name', 'settings-new-path'].forEach(id => {
+    document.getElementById(id)?.addEventListener('keydown', e => {
+      if (e.key === 'Enter') settingsAddPath();
+    });
+  });
+
+  document.getElementById('settings-overlay')
+    ?.addEventListener('click', e => {
+      if (e.target === e.currentTarget) closeSettingsModal();
+    });
 
   // Preview Modal schließen
   document.getElementById('preview-close')
