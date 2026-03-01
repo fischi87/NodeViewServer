@@ -461,7 +461,7 @@ body::before {
   padding: 0.65rem 1.25rem;
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: center;
   border-top: 1px solid var(--border);
   font-size: 0.73rem;
   color: var(--text-dim);
@@ -603,6 +603,12 @@ body::before {
 }
 
 /* ─── TOP BAR SETTINGS BUTTON ────────────────────────────────────────────── */
+
+.top-bar__actions {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
 
 .top-bar__btn-settings {
   background: none;
