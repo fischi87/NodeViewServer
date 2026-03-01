@@ -167,7 +167,7 @@ body::before {
 .update-banner {
   display: none;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-start;
   gap: 1rem;
   padding: 0.55rem 1.25rem;
   background: rgba(251, 191, 36, 0.05);
