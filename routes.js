@@ -279,15 +279,32 @@ router.get('/api/list', auth.requireAuthApi, async (req, res) => {
       .filter(e => e.isDirectory() && !e.name.startsWith('.'))
       .map(e => e.name);
 
-    const allSortedNames = await sortFilesByMTime(resolved.realPath);
-    const folderSet = new Set(folderNames);
-    const fileNames = allSortedNames.filter(name => !folderSet.has(name));
+    const fileEntries = entries
+      .filter(e => !e.isDirectory() && !e.name.startsWith('.'))
+      .map(e => e.name);
+
+    // Fetch stats for files (size + mtime for display and sorting)
+    const fileStats = await Promise.all(
+      fileEntries.map(async name => {
+        const stat = await fs.stat(path.join(resolved.realPath, name)).catch(() => null);
+        return stat ? { name, size: stat.size, mtime: stat.mtime } : { name, size: null, mtime: null };
+      })
+    );
+    fileStats.sort((a, b) => (b.mtime || 0) - (a.mtime || 0));
+
+    // Fetch mtime for folders
+    const folderStats = await Promise.all(
+      folderNames.map(async name => {
+        const stat = await fs.stat(path.join(resolved.realPath, name)).catch(() => null);
+        return { name, mtime: stat ? stat.mtime : null };
+      })
+    );
 
     return res.json({
       currentPath: relativePath,
       items: [
-        ...folderNames.map(n => ({ name: n, type: 'folder' })),
-        ...fileNames.map(n => ({ name: n, type: 'file' }))
+        ...folderStats.map(s => ({ name: s.name, type: 'folder', mtime: s.mtime })),
+        ...fileStats.map(s => ({ name: s.name, type: 'file', size: s.size, mtime: s.mtime }))
       ]
     });
   } catch (err) {

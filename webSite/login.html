@@ -2,54 +2,87 @@
 <html lang="de">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login</title>
-    <link rel="stylesheet" href="style.css">
-    <script>
-        async function handleLogin(event) {
-            event.preventDefault();
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Login – NodeViewServer</title>
+  <link rel="stylesheet" href="style.css">
+  <script>
+    async function handleLogin(event) {
+      event.preventDefault();
 
-            const username = document.getElementById('username').value;
-            const password = document.getElementById('password').value;
+      const username = document.getElementById('username').value;
+      const password = document.getElementById('password').value;
+      const btn      = document.getElementById('login-btn');
+      const errEl    = document.getElementById('login-error');
 
-            const response = await fetch('/login', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username, password }) // Sende die Daten als JSON
-            });
+      btn.disabled    = true;
+      btn.textContent = 'Anmelden …';
+      errEl.textContent = '';
 
-            if (response.ok) {
-                window.location.href = '/main.html'; // Weiterleitung zur main.html
-            } else {
-                const result = await response.json();
-                alert(result.message);
-            }
+      try {
+        const response = await fetch('/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username, password })
+        });
+
+        if (response.ok) {
+          window.location.href = '/main.html';
+        } else {
+          const result = await response.json().catch(() => ({}));
+          errEl.textContent = result.message || 'Anmeldung fehlgeschlagen.';
         }
-    </script>
+      } catch (err) {
+        errEl.textContent = 'Netzwerkfehler. Bitte erneut versuchen.';
+      } finally {
+        btn.disabled    = false;
+        btn.textContent = 'Anmelden';
+      }
+    }
+  </script>
 </head>
 
 <body>
-    <main class="container login-main">
-        <section class="glass-card login-card">
-            <h2>Willkommen</h2>
-            <form onsubmit="handleLogin(event)">
-                <div class="input-group">
-                    <input type="text" id="username" name="username" class="modern-input" required placeholder=" "
-                        autocomplete="username">
-                    <label for="username" class="floating-label">Benutzername</label>
-                </div>
-                <div class="input-group">
-                    <input type="password" id="password" name="password" class="modern-input" required placeholder=" "
-                        autocomplete="current-password">
-                    <label for="password" class="floating-label">Passwort</label>
-                </div>
-                <button type="submit" class="btn">Anmelden</button>
-            </form>
-        </section>
-    </main>
+  <div class="login-page">
+    <div class="login-card">
+
+      <div class="login-card__logo">NodeViewServer</div>
+      <p class="login-card__subtitle">Melde dich an, um fortzufahren</p>
+
+      <form onsubmit="handleLogin(event)" novalidate>
+        <div class="form-group">
+          <label class="form-label" for="username">Benutzername</label>
+          <input
+            type="text"
+            id="username"
+            name="username"
+            class="form-input"
+            required
+            autocomplete="username"
+            placeholder="Benutzername"
+          >
+        </div>
+
+        <div class="form-group">
+          <label class="form-label" for="password">Passwort</label>
+          <input
+            type="password"
+            id="password"
+            name="password"
+            class="form-input"
+            required
+            autocomplete="current-password"
+            placeholder="••••••••"
+          >
+        </div>
+
+        <p id="login-error" class="form-error" role="alert"></p>
+
+        <button type="submit" id="login-btn" class="btn-primary">Anmelden</button>
+      </form>
+
+    </div>
+  </div>
 </body>
 
 </html>

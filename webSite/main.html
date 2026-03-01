@@ -2,51 +2,67 @@
 <html lang="de">
 
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>NodeViewServer</title>
-    <link rel="stylesheet" href="style.css">
-    <script src="script.js" defer></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>NodeViewServer</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="script.js" defer></script>
 </head>
 
-<body>
-    <header class="page-header">
-        <h1 class="fancy-heading">NodeViewServer</h1>
+<body class="app-shell">
 
-        <!-- Version + Status-Badge -->
-        <div id="update-info" class="update-info">
-            <span id="server-version">lädt …</span>
-            <span id="update-badge" class="update-badge">⏳</span>
-        </div>
+  <!-- TOP BAR -->
+  <header class="top-bar">
+    <div class="top-bar__brand">
+      <span class="top-bar__logo">NodeViewServer</span>
+      <div class="top-bar__version">
+        <span id="server-version">lädt …</span>
+        <span id="update-badge" class="update-badge">⏳</span>
+      </div>
+    </div>
+  </header>
 
-        <!-- Erscheint nur wenn Update verfügbar -->
-        <div id="update-banner" class="update-banner" style="display:none;">
-            <p id="update-details" class="update-banner__message"></p>
-            <button id="btn-update-server" class="btn btn-update" type="button">
-                ↑ Jetzt aktualisieren
-            </button>
-        </div>
-    </header>
+  <!-- UPDATE BANNER (nur sichtbar wenn Update verfügbar) -->
+  <div id="update-banner" class="update-banner">
+    <p id="update-details" class="update-banner__message"></p>
+    <button id="btn-update-server" class="btn-update" type="button">
+      ↑ Aktualisieren
+    </button>
+  </div>
 
-    <main class="container">
+  <!-- MAIN LAYOUT: Sidebar + Content -->
+  <div class="main-layout">
 
-        <!-- Verzeichnisse -->
-        <section id="directories">
-            <!-- Wird dynamisch aus script.js gefüllt -->
-        </section>
+    <!-- SIDEBAR -->
+    <nav class="sidebar" id="sidebar" aria-label="Bereiche">
+      <div class="sidebar__label">Bereiche</div>
+      <!-- Dynamisch befüllt durch script.js -->
+    </nav>
 
-        <!-- Logout -->
-        <div class="logout-container">
-            <form id="logoutForm" action="/logout" method="POST">
-                <button class="btn btn-link" type="submit">Abmelden</button>
-            </form>
-        </div>
+    <!-- CONTENT -->
+    <div class="content">
 
-    </main>
+      <!-- Breadcrumb -->
+      <div class="content__header">
+        <nav class="breadcrumb" id="breadcrumb" aria-label="Pfad"></nav>
+      </div>
 
-    <footer class="footer">
-        <p>&copy; NodeViewServer</p>
-    </footer>
+      <!-- Dateiliste -->
+      <div class="file-list" id="file-list">
+        <!-- Dynamisch befüllt durch script.js -->
+      </div>
+
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer class="footer">
+    <form id="logoutForm" action="/logout" method="POST">
+      <button type="submit" class="btn-logout">Abmelden</button>
+    </form>
+    <span>&copy; NodeViewServer</span>
+  </footer>
+
 </body>
 
 </html>
