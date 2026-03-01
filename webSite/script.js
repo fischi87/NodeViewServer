@@ -233,11 +233,97 @@ async function renderFileList() {
   }
 }
 
-// ─── DATEI ÖFFNEN ─────────────────────────────────────────────────────────────
+// ─── DATEI ÖFFNEN / PREVIEW ───────────────────────────────────────────────────
+
+const FILE_TYPES = {
+  video:  ['mp4', 'webm', 'ogv', 'ogg', 'mov'],
+  image:  ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg', 'bmp', 'ico', 'avif'],
+  audio:  ['mp3', 'wav', 'aac', 'flac', 'm4a', 'oga'],
+  pdf:    ['pdf'],
+  text:   ['txt', 'log', 'md', 'json', 'js', 'ts', 'py', 'sh', 'bash',
+           'yaml', 'yml', 'xml', 'csv', 'html', 'css', 'ini', 'conf',
+           'toml', 'env', 'gitignore', 'rs', 'go', 'java', 'c', 'cpp', 'h'],
+};
+
+function getFileType(fileName) {
+  const ext = fileName.split('.').pop().toLowerCase();
+  for (const [type, exts] of Object.entries(FILE_TYPES)) {
+    if (exts.includes(ext)) return type;
+  }
+  return 'other';
+}
 
 function openFile(fileName) {
   const relPath = `${currentPath}/${fileName}`;
-  window.open(`/api/file?path=${encodeURIComponent(relPath)}`, '_blank');
+  const url     = `/api/file?path=${encodeURIComponent(relPath)}`;
+  const type    = getFileType(fileName);
+
+  if (type === 'other') {
+    window.open(url, '_blank');
+    return;
+  }
+
+  openPreviewModal(fileName, url, type);
+}
+
+// ─── PREVIEW MODAL ────────────────────────────────────────────────────────────
+
+function openPreviewModal(fileName, url, type) {
+  const overlay  = document.getElementById('preview-overlay');
+  const body     = document.getElementById('preview-body');
+  const title    = document.getElementById('preview-filename');
+  const download = document.getElementById('preview-download');
+
+  title.textContent = fileName;
+  download.href     = url;
+  body.innerHTML    = '';
+
+  if (type === 'video') {
+    body.innerHTML = `<video controls autoplay>
+      <source src="${url}">
+      Dein Browser unterstützt dieses Videoformat nicht.
+    </video>`;
+
+  } else if (type === 'image') {
+    body.innerHTML = `<img src="${url}" alt="${fileName}">`;
+
+  } else if (type === 'audio') {
+    body.innerHTML = `<audio controls autoplay>
+      <source src="${url}">
+      Dein Browser unterstützt dieses Audioformat nicht.
+    </audio>`;
+
+  } else if (type === 'pdf') {
+    body.innerHTML = `<iframe src="${url}" title="${fileName}"></iframe>`;
+
+  } else if (type === 'text') {
+    body.innerHTML = '<div class="file-list__empty">Lädt …</div>';
+    fetch(url)
+      .then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.text();
+      })
+      .then(text => {
+        const pre = document.createElement('pre');
+        pre.textContent = text.length > 200_000
+          ? text.slice(0, 200_000) + '\n\n… (Datei zu groß, Rest abgeschnitten)'
+          : text;
+        body.innerHTML = '';
+        body.appendChild(pre);
+      })
+      .catch(() => {
+        body.innerHTML = '<div class="preview-unsupported">Datei konnte nicht geladen werden.</div>';
+      });
+  }
+
+  overlay.classList.add('open');
+}
+
+function closePreviewModal() {
+  const overlay = document.getElementById('preview-overlay');
+  const body    = document.getElementById('preview-body');
+  overlay.classList.remove('open');
+  body.innerHTML = '';   // stoppt Video/Audio-Wiedergabe
 }
 
 // ─── DATEI LÖSCHEN ────────────────────────────────────────────────────────────
@@ -352,4 +438,17 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const btn = document.getElementById('btn-update-server');
   if (btn) btn.addEventListener('click', triggerServerUpdate);
+
+  // Preview Modal schließen
+  document.getElementById('preview-close')
+    ?.addEventListener('click', closePreviewModal);
+
+  document.getElementById('preview-overlay')
+    ?.addEventListener('click', e => {
+      if (e.target === e.currentTarget) closePreviewModal();
+    });
+
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') closePreviewModal();
+  });
 });

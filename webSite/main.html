@@ -55,6 +55,20 @@
     </div>
   </div>
 
+  <!-- FILE PREVIEW MODAL -->
+  <div id="preview-overlay" class="preview-overlay" role="dialog" aria-modal="true" aria-label="Dateivorschau">
+    <div class="preview-modal">
+      <div class="preview-modal__header">
+        <span id="preview-filename" class="preview-modal__title"></span>
+        <div class="preview-modal__actions">
+          <a id="preview-download" class="preview-modal__btn-download" target="_blank" rel="noopener">↓ Öffnen</a>
+          <button id="preview-close" class="preview-modal__btn-close" aria-label="Schließen">✕</button>
+        </div>
+      </div>
+      <div id="preview-body" class="preview-modal__body"></div>
+    </div>
+  </div>
+
   <!-- FOOTER -->
   <footer class="footer">
     <form id="logoutForm" action="/logout" method="POST">
