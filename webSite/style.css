@@ -242,6 +242,8 @@ body::before {
 }
 
 .sidebar__item-icon {
+  width: 16px;
+  height: 16px;
   opacity: 0.55;
   flex-shrink: 0;
 }
