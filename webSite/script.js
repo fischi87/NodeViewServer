@@ -96,6 +96,14 @@ function renderBreadcrumb() {
     return;
   }
 
+  if (currentPath === '__favorites__') {
+    const seg = document.createElement('span');
+    seg.className = 'breadcrumb__segment current';
+    seg.textContent = '★ Favoriten';
+    el.appendChild(seg);
+    return;
+  }
+
   const parts = currentPath.split('/').filter(Boolean);
 
   parts.forEach((part, i) => {
@@ -168,11 +176,80 @@ function updateSidebarActive() {
   });
 }
 
+// ─── FAVORITES VIEW ───────────────────────────────────────────────────────────
+
+function renderFavoritesView() {
+  const container = document.getElementById('file-list');
+  if (!container) return;
+
+  if (favorites.length === 0) {
+    container.innerHTML = '<div class="file-list__empty">Noch keine Favoriten gespeichert. Markiere Dateien mit ★ in der Dateiliste.</div>';
+    return;
+  }
+
+  const table = document.createElement('table');
+  table.className = 'file-list__table';
+  table.innerHTML = `
+    <thead>
+      <tr>
+        <th style="width:100%">Name</th>
+        <th>Pfad</th>
+        <th></th>
+      </tr>
+    </thead>
+  `;
+
+  const tbody = document.createElement('tbody');
+
+  favorites.forEach(fav => {
+    const tr = document.createElement('tr');
+    tr.className = 'file-row';
+
+    tr.innerHTML = `
+      <td><div class="file-row__name">${ICON_FILE}<span class="file-row__label">${fav.name}</span></div></td>
+      <td class="file-row__meta"><span class="favorites-path">${fav.path}</span></td>
+      <td class="file-row__actions">
+        <button class="btn-favorite active" title="Aus Favoriten entfernen" data-path="${fav.path}">★</button>
+      </td>
+    `;
+
+    // Zeile klicken öffnet Datei
+    tr.addEventListener('click', e => {
+      if (e.target.closest('.btn-favorite')) return;
+      const url = `/api/file?path=${encodeURIComponent(fav.path)}`;
+      const type = getFileType(fav.name);
+      if (type === 'other') {
+        window.open(url, '_blank');
+      } else {
+        openPreviewModal(fav.name, url, type);
+      }
+    });
+
+    // Stern-Button entfernt Favorit
+    tr.querySelector('.btn-favorite').addEventListener('click', async e => {
+      e.stopPropagation();
+      await toggleFavorite(fav.name, fav.path);
+      renderFavoritesView();
+    });
+
+    tbody.appendChild(tr);
+  });
+
+  table.appendChild(tbody);
+  container.innerHTML = '';
+  container.appendChild(table);
+}
+
 // ─── FILE LIST ────────────────────────────────────────────────────────────────
 
 async function renderFileList() {
   const container = document.getElementById('file-list');
   if (!container) return;
+
+  if (currentPath === '__favorites__') {
+    renderFavoritesView();
+    return;
+  }
 
   container.innerHTML = '<div class="file-list__empty">Lädt …</div>';
 
