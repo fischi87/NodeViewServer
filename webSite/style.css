@@ -423,6 +423,45 @@ body::before {
   border-color: rgba(248, 113, 113, 0.4);
 }
 
+/* ─── FAVORITE TOGGLE BUTTON (File Row) ─────────────────────────────────── */
+
+.btn-favorite {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0.4rem;
+  font-size: 0.85rem;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+  line-height: 1;
+}
+
+.btn-favorite:hover {
+  color: var(--warning);
+  border-color: rgba(251, 191, 36, 0.3);
+  background: rgba(251, 191, 36, 0.06);
+}
+
+.btn-favorite.active {
+  color: var(--warning);
+}
+
+/* ─── FAVORITES VIEW ─────────────────────────────────────────────────────── */
+
+.favorites-path {
+  font-size: 0.75rem;
+  color: var(--text-dim);
+  font-family: var(--font-mono);
+  max-width: 280px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 /* Empty / loading state */
 .file-list__empty {
   padding: 3.5rem 1.5rem;
@@ -634,6 +673,38 @@ body::before {
   color: var(--text-main);
   border-color: rgba(255, 255, 255, 0.22);
   background: var(--bg-hover);
+}
+
+/* ─── FAVORITES BUTTON (Top Bar) ─────────────────────────────────────────── */
+
+.top-bar__btn-favorites {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: color 0.15s, background 0.15s;
+  flex-shrink: 0;
+}
+
+.top-bar__btn-favorites svg {
+  width: 18px;
+  height: 18px;
+}
+
+.top-bar__btn-favorites:hover {
+  background: var(--bg-hover);
+  color: var(--text-main);
+}
+
+.top-bar__btn-favorites.active {
+  color: var(--accent);
 }
 
 /* ─── SETTINGS MODAL ─────────────────────────────────────────────────────── */
