@@ -156,6 +156,7 @@ async function loadSidebar() {
       item.addEventListener('click', () => {
         currentPath = root.name;
         updateSidebarActive();
+        updateFavoritesButtonState();
         renderBreadcrumb();
         renderFileList();
       });
@@ -700,6 +701,7 @@ function showSettingsError(msg) {
 
 document.addEventListener('DOMContentLoaded', () => {
   fetchServerVersion();
+  loadFavorites();
 
   loadSidebar().then(() => {
     // Ersten Bereich automatisch auswählen
@@ -713,6 +715,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const btn = document.getElementById('btn-update-server');
   if (btn) btn.addEventListener('click', triggerServerUpdate);
+
+  // Favorites
+  document.getElementById('btn-favorites')
+    ?.addEventListener('click', () => {
+      currentPath = '__favorites__';
+      updateSidebarActive();
+      updateFavoritesButtonState();
+      renderBreadcrumb();
+      renderFileList();
+    });
 
   // Settings Modal
   document.getElementById('btn-settings')
