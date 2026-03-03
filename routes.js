@@ -261,7 +261,13 @@ router.post('/api/favorites', auth.requireAuthApi, (req, res) => {
   const cleaned = favorites.filter(
     f => f && typeof f.name === 'string' && typeof f.path === 'string'
        && f.name.trim() && f.path.trim()
-  ).map(f => ({ name: f.name.trim(), path: f.path.trim() }));
+  ).map(f => {
+    const entry = { name: f.name.trim(), path: f.path.trim() };
+    if (typeof f.alias === 'string' && f.alias.trim()) {
+      entry.alias = f.alias.trim();
+    }
+    return entry;
+  });
 
   setFavorites(cleaned);
   res.json({ ok: true, favorites: getFavorites() });
