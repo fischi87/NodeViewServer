@@ -9,7 +9,8 @@ const config = require('./config');
 const auth = require('./auth');
 const { sortFilesByMTime } = require('./fileUtils');
 const { getRoots, setRoots, validateRootsInput, isUnderAllowedBase } = require('./pathsStore');
-const pkg = require('./package.json'); // Version aus package.json 
+const { getFavorites, setFavorites } = require('./favoritesStore');
+const pkg = require('./package.json'); // Version aus package.json
 
 const router = express.Router();
 
@@ -240,6 +241,30 @@ router.post('/api/paths', auth.requireAuthApi, async (req, res) => {
     roots: getRoots(),
     errors
   });
+});
+
+// -----------------------------------------------------------------------------
+// /api/favorites – Favoriten verwalten
+// -----------------------------------------------------------------------------
+
+router.get('/api/favorites', auth.requireAuthApi, (req, res) => {
+  res.json({ favorites: getFavorites() });
+});
+
+router.post('/api/favorites', auth.requireAuthApi, (req, res) => {
+  const { favorites } = req.body;
+
+  if (!Array.isArray(favorites)) {
+    return res.status(400).json({ error: 'favorites muss ein Array sein' });
+  }
+
+  const cleaned = favorites.filter(
+    f => f && typeof f.name === 'string' && typeof f.path === 'string'
+       && f.name.trim() && f.path.trim()
+  ).map(f => ({ name: f.name.trim(), path: f.path.trim() }));
+
+  setFavorites(cleaned);
+  res.json({ ok: true, favorites: getFavorites() });
 });
 
 // -----------------------------------------------------------------------------
