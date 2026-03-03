@@ -311,6 +311,11 @@ async function renderFileList() {
       const labelClass  = 'file-row__label' + (item.type === 'folder' ? ' is-folder' : '');
       const sizeCell    = item.type === 'file' ? formatSize(item.size) : '—';
       const dateCell    = formatDate(item.mtime);
+      const filePath    = `${currentPath}/${item.name}`;
+      const favActive   = item.type === 'file' && isFavorite(filePath) ? ' active' : '';
+      const starBtn     = item.type === 'file'
+        ? `<button class="btn-favorite${favActive}" data-path="${filePath}" data-name="${item.name}" title="Favorit">★</button>`
+        : '';
       const deleteBtn   = item.type === 'file'
         ? `<button class="btn-delete" data-name="${item.name}">Löschen</button>`
         : '';
@@ -319,7 +324,7 @@ async function renderFileList() {
         <td><div class="file-row__name">${icon}<span class="${labelClass}">${item.name}</span></div></td>
         <td class="file-row__meta">${sizeCell}</td>
         <td class="file-row__meta">${dateCell}</td>
-        <td class="file-row__actions">${deleteBtn}</td>
+        <td class="file-row__actions">${starBtn}${deleteBtn}</td>
       `;
 
       if (item.type === 'folder') {
@@ -332,13 +337,22 @@ async function renderFileList() {
       } else {
         tr.addEventListener('click', e => {
           if (e.target.closest('.btn-delete')) return;
+          if (e.target.closest('.btn-favorite')) return;
           openFile(item.name);
         });
-        const btn = tr.querySelector('.btn-delete');
-        if (btn) {
-          btn.addEventListener('click', e => {
+        const deleteBtn = tr.querySelector('.btn-delete');
+        if (deleteBtn) {
+          deleteBtn.addEventListener('click', e => {
             e.stopPropagation();
             deleteFile(item.name);
+          });
+        }
+        const starBtn = tr.querySelector('.btn-favorite');
+        if (starBtn) {
+          starBtn.addEventListener('click', async e => {
+            e.stopPropagation();
+            await toggleFavorite(item.name, filePath);
+            starBtn.classList.toggle('active', isFavorite(filePath));
           });
         }
       }
