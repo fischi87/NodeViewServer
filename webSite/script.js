@@ -2,6 +2,7 @@
 // Sidebar-Navigation · Dateibrowser · Breadcrumbs · Update-Logik
 
 let currentPath = '';   // "" = Root, "Simulation" = Root-Ordner, "Simulation/logs" = Unterordner
+let favorites = [];   // { name, path }[] – geladen von /api/favorites
 
 // ─── HILFSFUNKTIONEN ─────────────────────────────────────────────────────────
 
@@ -18,6 +19,51 @@ function formatDate(iso) {
   const d = new Date(iso);
   const p = n => String(n).padStart(2, '0');
   return `${p(d.getDate())}.${p(d.getMonth() + 1)}.${String(d.getFullYear()).slice(-2)} ${p(d.getHours())}:${p(d.getMinutes())}`;
+}
+
+// ─── FAVORITEN ────────────────────────────────────────────────────────────────
+
+async function loadFavorites() {
+  try {
+    const res = await fetch('/api/favorites');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    const data = await res.json();
+    favorites = Array.isArray(data.favorites) ? data.favorites : [];
+  } catch (err) {
+    console.error('[loadFavorites] Fehler:', err);
+    favorites = [];
+  }
+}
+
+async function saveFavorites() {
+  try {
+    await fetch('/api/favorites', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ favorites })
+    });
+  } catch (err) {
+    console.error('[saveFavorites] Fehler:', err);
+  }
+}
+
+function isFavorite(filePath) {
+  return favorites.some(f => f.path === filePath);
+}
+
+async function toggleFavorite(name, filePath) {
+  if (isFavorite(filePath)) {
+    favorites = favorites.filter(f => f.path !== filePath);
+  } else {
+    favorites.push({ name, path: filePath });
+  }
+  await saveFavorites();
+}
+
+function updateFavoritesButtonState() {
+  const btn = document.getElementById('btn-favorites');
+  if (!btn) return;
+  btn.classList.toggle('active', currentPath === '__favorites__');
 }
 
 // ─── SVG ICONS (inline, no external deps) ────────────────────────────────────
