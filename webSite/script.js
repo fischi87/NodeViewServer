@@ -701,9 +701,8 @@ function showSettingsError(msg) {
 
 document.addEventListener('DOMContentLoaded', () => {
   fetchServerVersion();
-  loadFavorites();
 
-  loadSidebar().then(() => {
+  Promise.all([loadFavorites(), loadSidebar()]).then(() => {
     // Ersten Bereich automatisch auswählen
     if (sidebarRoots.length > 0) {
       currentPath = sidebarRoots[0].name;
