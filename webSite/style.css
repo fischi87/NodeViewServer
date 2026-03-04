@@ -718,12 +718,12 @@ body::before {
   width: 32px;
   height: 32px;
   padding: 0;
-  background: transparent;
-  border: none;
+  background: none;
+  border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
   color: var(--text-muted);
   cursor: pointer;
-  transition: color 0.15s, background 0.15s;
+  transition: color 0.15s, background 0.15s, border-color 0.15s;
   flex-shrink: 0;
 }
 
@@ -735,6 +735,7 @@ body::before {
 .top-bar__btn-favorites:hover {
   background: var(--bg-hover);
   color: var(--text-main);
+  border-color: rgba(255, 255, 255, 0.22);
 }
 
 .top-bar__btn-favorites.active {
