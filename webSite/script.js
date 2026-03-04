@@ -321,19 +321,24 @@ async function renderFileList() {
       const sizeCell    = item.type === 'file' ? formatSize(item.size) : '—';
       const dateCell    = formatDate(item.mtime);
       const filePath    = `${currentPath}/${item.name}`;
-      const favActive   = item.type === 'file' && isFavorite(filePath) ? ' active' : '';
-      const starBtn     = item.type === 'file'
+      const isFav        = item.type === 'file' && isFavorite(filePath);
+      const favActive    = isFav ? ' active' : '';
+      const favIndicator = isFav ? '<span class="file-row__fav-indicator">★</span>' : '';
+      const starBtn      = item.type === 'file'
         ? `<button class="btn-favorite${favActive}" data-path="${filePath}" data-name="${item.name}" title="Favorit">★</button>`
         : '';
-      const deleteBtn   = item.type === 'file'
+      const dlBtn        = item.type === 'file'
+        ? `<a class="btn-download" href="/api/file?path=${encodeURIComponent(filePath)}" download="${escapeHtml(item.name)}" title="Herunterladen">↓</a>`
+        : '';
+      const deleteBtn    = item.type === 'file'
         ? `<button class="btn-delete" data-name="${item.name}">Löschen</button>`
         : '';
 
       tr.innerHTML = `
-        <td><div class="file-row__name">${icon}<span class="${labelClass}">${item.name}</span></div></td>
+        <td><div class="file-row__name">${icon}<span class="${labelClass}">${item.name}</span>${favIndicator}</div></td>
         <td class="file-row__meta">${sizeCell}</td>
         <td class="file-row__meta">${dateCell}</td>
-        <td class="file-row__actions">${starBtn}${deleteBtn}</td>
+        <td class="file-row__actions">${dlBtn}${starBtn}${deleteBtn}</td>
       `;
 
       if (item.type === 'folder') {
@@ -347,6 +352,7 @@ async function renderFileList() {
         tr.addEventListener('click', e => {
           if (e.target.closest('.btn-delete')) return;
           if (e.target.closest('.btn-favorite')) return;
+          if (e.target.closest('.btn-download')) return;
           openFile(item.name);
         });
         const deleteBtn = tr.querySelector('.btn-delete');
