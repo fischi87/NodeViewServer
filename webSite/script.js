@@ -325,17 +325,17 @@ async function renderFileList() {
       const favActive    = isFav ? ' active' : '';
       const favIndicator = isFav ? '<span class="file-row__fav-indicator">★</span>' : '';
       const starBtn      = item.type === 'file'
-        ? `<button class="btn-favorite${favActive}" data-path="${filePath}" data-name="${item.name}" title="Favorit">★</button>`
+        ? `<button class="btn-favorite${favActive}" data-path="${escapeHtml(filePath)}" data-name="${escapeHtml(item.name)}" title="Favorit">★</button>`
         : '';
       const dlBtn        = item.type === 'file'
         ? `<a class="btn-download" href="/api/file?path=${encodeURIComponent(filePath)}" download="${escapeHtml(item.name)}" title="Herunterladen">↓</a>`
         : '';
       const deleteBtn    = item.type === 'file'
-        ? `<button class="btn-delete" data-name="${item.name}">Löschen</button>`
+        ? `<button class="btn-delete" data-name="${escapeHtml(item.name)}">Löschen</button>`
         : '';
 
       tr.innerHTML = `
-        <td><div class="file-row__name">${icon}<span class="${labelClass}">${item.name}</span>${favIndicator}</div></td>
+        <td><div class="file-row__name">${icon}<span class="${labelClass}">${escapeHtml(item.name)}</span>${favIndicator}</div></td>
         <td class="file-row__meta">${sizeCell}</td>
         <td class="file-row__meta">${dateCell}</td>
         <td class="file-row__actions">${dlBtn}${starBtn}${deleteBtn}</td>
@@ -367,7 +367,16 @@ async function renderFileList() {
           starBtn.addEventListener('click', async e => {
             e.stopPropagation();
             await toggleFavorite(item.name, filePath);
-            starBtn.classList.toggle('active', isFavorite(filePath));
+            const nowFav = isFavorite(filePath);
+            starBtn.classList.toggle('active', nowFav);
+            const existingIndicator = tr.querySelector('.file-row__fav-indicator');
+            if (nowFav && !existingIndicator) {
+              tr.querySelector('.file-row__label').insertAdjacentHTML(
+                'afterend', '<span class="file-row__fav-indicator">★</span>'
+              );
+            } else if (!nowFav && existingIndicator) {
+              existingIndicator.remove();
+            }
           });
         }
       }
