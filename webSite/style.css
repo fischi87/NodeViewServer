@@ -924,6 +924,52 @@ body::before {
   font-size: 0.85rem;
 }
 
+/* ─── DISPLAY MODE SELECTOR (Settings) ───────────────────────────────── */
+
+.settings-display-mode {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.settings-display-mode__option {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background 0.12s;
+  background: rgba(255, 255, 255, 0.02);
+}
+
+.settings-display-mode__option:hover {
+  background: var(--bg-hover);
+}
+
+.settings-display-mode__option input[type="radio"] {
+  accent-color: var(--accent);
+  flex-shrink: 0;
+  cursor: pointer;
+}
+
+.settings-display-mode__option-label {
+  font-size: 0.85rem;
+  color: var(--text-main);
+  font-weight: 500;
+  min-width: 5.5rem;
+}
+
+.settings-display-mode__example {
+  font-family: var(--font-mono);
+  font-size: 0.72rem;
+  color: var(--text-dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 @media (max-width: 560px) {
   .settings-add-form {
     grid-template-columns: 1fr;
