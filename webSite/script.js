@@ -29,6 +29,31 @@ function escapeHtml(s) {
     .replace(/"/g, '&quot;');
 }
 
+// ─── DATEINAME-FORMATIERUNG ──────────────────────────────────────────────────
+
+const CAMERA_NAME_REGEX = /^(.*?)(?:_(\d+))?_(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/;
+
+function formatFilename(name, mode) {
+  if (!mode || mode === 'original') return name;
+  const base  = name.replace(/\.[^.]+$/, ''); // Extension entfernen
+  const match = base.match(CAMERA_NAME_REGEX);
+  if (!match) return name;
+  const [, prefix, index, year, month, day, hour, minute] = match;
+  const dateStr = `${day}.${month}.${year}, ${hour}:${minute}`;
+  if (mode === 'dateOnly') return dateStr;
+  const parts = prefix ? [prefix] : [];
+  if (index !== undefined) parts.push(index);
+  return parts.length > 0 ? `${parts.join(' ')} — ${dateStr}` : dateStr;
+}
+
+function getFilenameMode() {
+  return localStorage.getItem('filenameDisplayMode') || 'original';
+}
+
+function setFilenameMode(mode) {
+  localStorage.setItem('filenameDisplayMode', mode);
+}
+
 // ─── FAVORITEN ────────────────────────────────────────────────────────────────
 
 async function loadFavorites() {
@@ -215,7 +240,7 @@ function renderFavoritesView() {
     tr.className = 'file-row';
 
     tr.innerHTML = `
-      <td><div class="file-row__name">${ICON_FILE}<span class="file-row__label">${escapeHtml(fav.alias || fav.name)}</span></div></td>
+      <td><div class="file-row__name">${ICON_FILE}<span class="file-row__label">${escapeHtml(fav.alias || formatFilename(fav.name, getFilenameMode()))}</span></div></td>
       <td class="file-row__meta"><span class="favorites-path">${escapeHtml(fav.path)}</span></td>
       <td class="file-row__actions">
         <button class="btn-favorite active" title="Aus Favoriten entfernen" data-path="${escapeHtml(fav.path)}">★</button>
@@ -335,7 +360,7 @@ async function renderFileList() {
         : '';
 
       tr.innerHTML = `
-        <td><div class="file-row__name">${icon}<span class="${labelClass}">${escapeHtml(item.name)}</span>${favIndicator}</div></td>
+        <td><div class="file-row__name">${icon}<span class="${labelClass}">${escapeHtml(formatFilename(item.name, getFilenameMode()))}</span>${favIndicator}</div></td>
         <td class="file-row__meta">${sizeCell}</td>
         <td class="file-row__meta">${dateCell}</td>
         <td class="file-row__actions">${dlBtn}${starBtn}${deleteBtn}</td>
@@ -604,6 +629,12 @@ function openSettingsModal() {
       renderSettingsPaths();
     });
 
+  // Aktuellen Anzeigemodus in Radio-Buttons setzen
+  const currentMode = getFilenameMode();
+  document.querySelectorAll('input[name="filename-display-mode"]').forEach(radio => {
+    radio.checked = radio.value === currentMode;
+  });
+
   overlay.classList.add('open');
 }
 
@@ -759,6 +790,14 @@ document.addEventListener('DOMContentLoaded', () => {
     ?.addEventListener('click', saveSettings);
   document.getElementById('settings-add-btn')
     ?.addEventListener('click', settingsAddPath);
+
+  // Dateiname-Anzeigemodus: sofort anwenden bei Klick
+  document.querySelectorAll('input[name="filename-display-mode"]').forEach(radio => {
+    radio.addEventListener('change', () => {
+      setFilenameMode(radio.value);
+      renderFileList();
+    });
+  });
 
   // Enter in den Add-Feldern
   ['settings-new-name', 'settings-new-path'].forEach(id => {
