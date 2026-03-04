@@ -207,7 +207,7 @@ function renderFavoritesView() {
     tr.className = 'file-row';
 
     tr.innerHTML = `
-      <td><div class="file-row__name">${ICON_FILE}<span class="file-row__label">${fav.name}</span></div></td>
+      <td><div class="file-row__name">${ICON_FILE}<span class="file-row__label">${fav.alias || fav.name}</span></div></td>
       <td class="file-row__meta"><span class="favorites-path">${fav.path}</span></td>
       <td class="file-row__actions">
         <button class="btn-favorite active" title="Aus Favoriten entfernen" data-path="${fav.path}">★</button>
