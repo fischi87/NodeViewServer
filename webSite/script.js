@@ -31,14 +31,15 @@ function escapeHtml(s) {
 
 // ─── DATEINAME-FORMATIERUNG ──────────────────────────────────────────────────
 
-const CAMERA_NAME_REGEX = /^(.*?)(?:_(\d+))?_(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(\d{2})$/;
+const CAMERA_NAME_REGEX = /^(.*?)(?:_(\d+))?_(\d{4})(\d{2})(\d{2})(\d{2})(\d{2})(?:\d{2})$/;
 
 function formatFilename(name, mode) {
+  if (!name) return name;
   if (!mode || mode === 'original') return name;
   const base  = name.replace(/\.[^.]+$/, ''); // Extension entfernen
   const match = base.match(CAMERA_NAME_REGEX);
   if (!match) return name;
-  const [, prefix, index, year, month, day, hour, minute] = match;
+  const [, prefix, index, year, month, day, hour, minute /* second */] = match;
   const dateStr = `${day}.${month}.${year}, ${hour}:${minute}`;
   if (mode === 'dateOnly') return dateStr;
   const parts = prefix ? [prefix] : [];
