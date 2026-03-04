@@ -423,6 +423,29 @@ body::before {
   border-color: rgba(248, 113, 113, 0.4);
 }
 
+/* ─── DOWNLOAD BUTTON (File Row) ─────────────────────────────────────── */
+
+.btn-download {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.18rem 0.45rem;
+  background: none;
+  border: 1px solid transparent;
+  border-radius: var(--radius-sm);
+  color: var(--text-dim);
+  cursor: pointer;
+  text-decoration: none;
+  font-size: 0.8rem;
+  transition: color 0.15s, border-color 0.15s, background 0.15s;
+}
+
+.btn-download:hover {
+  color: var(--text-main);
+  border-color: rgba(255, 255, 255, 0.15);
+  background: var(--bg-hover);
+}
+
 /* ─── FAVORITE TOGGLE BUTTON (File Row) ─────────────────────────────────── */
 
 .btn-favorite {
@@ -448,6 +471,15 @@ body::before {
 
 .btn-favorite.active {
   color: var(--warning);
+}
+
+.file-row__fav-indicator {
+  color: var(--warning);
+  font-size: 0.7rem;
+  margin-left: 0.15rem;
+  opacity: 0.85;
+  flex-shrink: 0;
+  line-height: 1;
 }
 
 /* ─── FAVORITES VIEW ─────────────────────────────────────────────────────── */
