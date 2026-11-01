@@ -137,7 +137,7 @@ Danach neu starten (`pm2 restart nodeviewserver`).
 - **HTTPS verwenden**, sonst wird das Passwort im Klartext übers Netzwerk geschickt.
 - Den Server **nicht ungeschützt ins Internet** stellen; für Zugriff von außen ein VPN (z. B. WireGuard/Tailscale) nutzen.
 - `.env`, `config.js`, `.ssl/` und `.sessions/` enthalten Geheimnisse und sind nicht im Git.
-- Dateien werden ausschließlich als Download ausgeliefert (PDFs inline für die Vorschau).
+- Bilder, Videos, Audio und PDFs werden inline ausgeliefert (Vorschau/Streaming). Alles andere – insbesondere HTML, SVG und Skripte – kommt nur als Download, damit es nie im Kontext der App ausgeführt wird.
 
 ---
 
@@ -169,6 +169,7 @@ und setzt bei einem Fehler automatisch auf den vorherigen Stand zurück. Ausgabe
 | `update.sh`       | Update-Script                       |
 | `setup-ssl.sh`    | SSL nachträglich einrichten         |
 | `disable-ssl.sh`  | SSL deaktivieren                    |
+| `.sessions/`      | Login-Sessions *(nicht im Git)*     |
 | `.env`            | Secrets *(nicht im Git)*            |
 | `config.js`       | Konfiguration *(nicht im Git)*      |
 | `paths.json`      | Freigabe-Pfade *(nicht im Git)*     |

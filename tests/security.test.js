@@ -79,6 +79,15 @@ describe('Eingeloggt', () => {
         expect(res.statusCode).toBe(400);
     });
 
+    test('Videos werden inline mit Range-Unterstützung geliefert', async () => {
+        fs.writeFileSync(path.join(dir, 'v.mp4'), Buffer.alloc(1000));
+        const res = await agent.get('/api/file').query({ path: 'T/v.mp4' }).set('Range', 'bytes=0-99');
+        expect(res.statusCode).toBe(206);
+        expect(res.headers['content-type']).toMatch(/video\/mp4/);
+        expect(res.headers['content-disposition']).toBeUndefined();
+        expect(res.headers['content-security-policy']).toBeUndefined();
+    });
+
     test('PDFs werden für die Vorschau inline mit fester Content-Type geliefert', async () => {
         fs.writeFileSync(path.join(dir, 'a.pdf'), '%PDF-1.4');
         const res = await agent.get('/api/file').query({ path: 'T/a.pdf' });

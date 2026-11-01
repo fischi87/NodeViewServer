@@ -335,6 +335,16 @@ router.get('/api/list', auth.requireAuthApi, async (req, res) => {
 // -----------------------------------------------------------------------------
 // /api/file – Datei herunterladen
 // -----------------------------------------------------------------------------
+const INLINE_TYPES = {
+  '.pdf': 'application/pdf',
+  '.mp4': 'video/mp4', '.m4v': 'video/mp4', '.mov': 'video/quicktime',
+  '.webm': 'video/webm', '.ogv': 'video/ogg',
+  '.mp3': 'audio/mpeg', '.m4a': 'audio/mp4', '.aac': 'audio/aac',
+  '.wav': 'audio/wav', '.flac': 'audio/flac', '.oga': 'audio/ogg', '.ogg': 'audio/ogg',
+  '.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.gif': 'image/gif',
+  '.webp': 'image/webp', '.bmp': 'image/bmp', '.ico': 'image/x-icon', '.avif': 'image/avif'
+};
+
 router.get('/api/file', auth.requireAuthApi, async (req, res) => {
   try {
     const relativePath = req.query.path ? String(req.query.path).trim() : '';
@@ -359,11 +369,12 @@ router.get('/api/file', auth.requireAuthApi, async (req, res) => {
 
     res.set('X-Content-Type-Options', 'nosniff');
 
-    // PDFs dürfen für die Vorschau inline geliefert werden (feste Content-Type).
-    // Alles andere (HTML, SVG, JS, ...) nur als Download + CSP-Sandbox, damit
-    // Inhalte aus einem Root nie im Origin der App ausgeführt werden.
-    if (path.extname(resolved.realPath).toLowerCase() === '.pdf') {
-      res.type('application/pdf');
+    // Medien/PDF dürfen inline (Vorschau, Streaming mit Range) – mit fester
+    // Content-Type aus der Allowlist. Alles Ausführbare (HTML, SVG, JS, ...)
+    // nur als Download + CSP-Sandbox, damit es nie im Origin der App läuft.
+    const inlineType = INLINE_TYPES[path.extname(resolved.realPath).toLowerCase()];
+    if (inlineType && req.query.download !== '1') {
+      res.type(inlineType);
       return res.sendFile(resolved.realPath, { dotfiles: 'allow' });
     }
 
