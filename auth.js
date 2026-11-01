@@ -2,6 +2,8 @@
 const bcrypt = require('bcrypt');
 const config = require('./config');
 
+const DUMMY_HASH = bcrypt.hashSync('dummy-password', 10);
+
 // Middleware zur Authentifizierung
 function checkAuthentication(req, res, next) {
   if (req.session.loggedIn) {
@@ -13,10 +15,17 @@ function checkAuthentication(req, res, next) {
 
 // Login-Logik mit Session-Regeneration (Fixation-Schutz)
 async function login(req, res) {
-  const { username, password } = req.body;
-  const hashedPassword = config.users[username];
+  const { username, password } = req.body || {};
+  if (typeof username !== 'string' || typeof password !== 'string' || password.length > 1024) {
+    return res.status(400).json({ success: false, message: 'Ungültige Anmeldedaten' });
+  }
 
-  if (!hashedPassword || !(await bcrypt.compare(password, hashedPassword))) {
+  // Nur eigene Properties (kein "constructor"/"__proto__"); bei unbekanntem User
+  // trotzdem einen Hash vergleichen, damit die Antwortzeit nichts verrät.
+  const hashedPassword = Object.hasOwn(config.users, username) ? config.users[username] : null;
+  const ok = await bcrypt.compare(password, hashedPassword || DUMMY_HASH);
+
+  if (!hashedPassword || !ok) {
     return res.status(401).json({ success: false, message: 'Ungültige Anmeldedaten' });
   }
 

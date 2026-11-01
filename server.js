@@ -38,6 +38,14 @@ if (!sessionSecret || !String(sessionSecret).trim()) {
 }
 
 const routes = require('./routes');
+const FileStore = require('./sessionStore');
+
+// Warnen, wenn kein Benutzer einen gültigen Passwort-Hash hat (Login wäre unmöglich)
+const validUsers = Object.entries(config.users || {})
+  .filter(([, h]) => typeof h === 'string' && /^\$2[aby]\$/.test(h));
+if (validUsers.length === 0) {
+  console.error('WARNUNG: Kein Benutzer mit gültigem bcrypt-Hash konfiguriert (.env prüfen, siehe README).');
+}
 
 const app = express();
 
@@ -46,32 +54,75 @@ if (config.trustProxy) {
   app.set('trust proxy', 1);
 }
 
-// 1) Bodyparser
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+// 0) Security-Header
+app.disable('x-powered-by');
+app.use((req, res, next) => {
+  res.set({
+    'X-Content-Type-Options': 'nosniff',
+    'X-Frame-Options': 'DENY',
+    'Referrer-Policy': 'same-origin',
+    'Cross-Origin-Opener-Policy': 'same-origin'
+  });
+  if (config.ssl && config.ssl.enabled) {
+    res.set('Strict-Transport-Security', 'max-age=15552000');
+  }
+  next();
+});
+
+// 1) Bodyparser (mit Größenlimit)
+app.use(express.json({ limit: '100kb' }));
+app.use(express.urlencoded({ extended: true, limit: '100kb' }));
 
 // 2) Session (MUSS vor /api!)
+const sessionMaxAge = config.sessionMaxAge || 1000 * 60 * 60 * 24 * 7;
+
 app.use(session({
   name: 'nodeView.sid',
+  store: process.env.NODE_ENV === 'test'
+    ? undefined
+    : new FileStore({ dir: path.join(__dirname, '.sessions'), ttlMs: sessionMaxAge }),
   secret: sessionSecret,
   resave: false,
   saveUninitialized: false,
   rolling: true,
   cookie: {
     httpOnly: true,
-    maxAge: 1000 * 60 * 60 * 24 * 7, // 7 Tage
+    maxAge: sessionMaxAge,
     sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production'
+    secure: process.env.NODE_ENV === 'production' ? true : 'auto'
   }
 }));
+
+// 2b) CSRF-Schutz: schreibende Requests mit fremdem Origin ablehnen
+app.use((req, res, next) => {
+  if (['GET', 'HEAD', 'OPTIONS'].includes(req.method)) return next();
+  const origin = req.get('origin');
+  if (origin) {
+    let host = null;
+    try { host = new URL(origin).host; } catch (_) { /* ungültig */ }
+    if (host !== req.get('host')) {
+      return res.status(403).json({ error: 'Ungültiger Origin' });
+    }
+  }
+  next();
+});
 
 // 3) Throttling für Login
 const loginLimiter = rateLimit({
   windowMs: config.rateLimitWindowMs,
-  max: config.rateLimitMax,
+  limit: config.rateLimitMax,
+  skipSuccessfulRequests: true,
+  standardHeaders: true,
+  legacyHeaders: false,
   message: 'Zu viele Anmeldeversuche, bitte versuche es später erneut.'
 });
 app.use('/login', loginLimiter);
+app.use('/api', rateLimit({
+  windowMs: 60 * 1000,
+  limit: config.apiRateLimitPerMin || 600,
+  standardHeaders: true,
+  legacyHeaders: false
+}));
 
 // 4) Alle Routen (Browser + API)
 app.use('/', routes);
@@ -87,8 +138,9 @@ app.use((err, req, res, next) => {
 
 // 7) Start (nur wenn direkt ausgeführt)
 if (require.main === module) {
+  let server;
+
   if (config.ssl && config.ssl.enabled) {
-    const fs = require('fs');
     const https = require('https');
 
     try {
@@ -97,7 +149,7 @@ if (require.main === module) {
         cert: fs.readFileSync(path.resolve(__dirname, config.ssl.cert))
       };
 
-      https.createServer(options, app).listen(config.port, () => {
+      server = https.createServer(options, app).listen(config.port, () => {
         console.log(`HTTPS-Server läuft auf https://localhost:${config.port}`);
       });
     } catch (err) {
@@ -105,10 +157,23 @@ if (require.main === module) {
       process.exit(1);
     }
   } else {
-    app.listen(config.port, () => {
+    server = app.listen(config.port, () => {
       console.log(`HTTP-Server läuft auf http://localhost:${config.port}`);
     });
   }
+
+  // Graceful Shutdown (PM2 restart / Ctrl+C)
+  const shutdown = (signal) => {
+    console.log(`${signal} empfangen, fahre herunter...`);
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(1), 10000).unref();
+  };
+  process.on('SIGTERM', () => shutdown('SIGTERM'));
+  process.on('SIGINT', () => shutdown('SIGINT'));
+
+  process.on('unhandledRejection', (reason) => {
+    console.error('Unhandled rejection:', reason);
+  });
 }
 
 module.exports = app;

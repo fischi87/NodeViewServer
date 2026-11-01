@@ -17,10 +17,10 @@ Der Server läuft vollständig unter **Node.js** und ist durch ein Installations
 
 ## 🚀 Features
 
-- 🔐 **Login-System** (bcrypt + Session)
+- 🔐 **Login-System** (bcrypt + persistente Sessions, überleben Neustarts)
 - 📂 **Pfad-Freigabe-System** (`paths.json`) – kompatibel mit der iOS-App
 - 📁 **File Browser API** für Dateien & Ordner
-- 🔒 **Rate Limiting** & Session-Security
+- 🔒 **Rate Limiting**, CSRF-Schutz (Origin-Check), Security-Header, sichere Downloads
 - 🔧 **Automatische Konfiguration** durch `install.sh`
 - 🔄 **Update-System** mit `update.sh` und API-Update-Trigger
 - 📡 **Version API** (`/api/version`) für App-seitige Update-Erkennung
@@ -111,11 +111,33 @@ node hashPassword.js
 node hashPassword.js "NeuesPasswort123"
 ```
 
-Den ausgegebenen Hash in die `.env`-Datei eintragen:
+Den ausgegebenen Hash in der `.env` beim Benutzer eintragen. Der genaue Variablenname
+steht in `config.js` unter `users` (bei Benutzer „Axel“ z. B. `USER_AXEL_HASH`):
 
 ```
 USER_AXEL_HASH=$2b$10$...
 ```
+
+Danach neu starten (`pm2 restart nodeviewserver`).
+
+---
+
+## ⚙️ Konfiguration (`config.js`)
+
+| Option              | Bedeutung                                                                      |
+|---------------------|--------------------------------------------------------------------------------|
+| `allowedBasePaths`  | Verzeichnisse, unter denen Freigaben erlaubt sind                              |
+| `expertMode`        | `true` erlaubt Freigaben außerhalb von `allowedBasePaths` (nur bewusst nutzen) |
+| `trustProxy`        | `true` nur hinter Reverse-Proxy (nginx/Caddy), sonst `false`                   |
+| `allowRemoteUpdate` | `false` sperrt den Update-Button der App                                       |
+| `whitelist`         | IPs, die `/files/*` ohne Login nutzen dürfen (Standard: leer)                  |
+
+## 🛡️ Sicherheitshinweise
+
+- **HTTPS verwenden**, sonst wird das Passwort im Klartext übers Netzwerk geschickt.
+- Den Server **nicht ungeschützt ins Internet** stellen; für Zugriff von außen ein VPN (z. B. WireGuard/Tailscale) nutzen.
+- `.env`, `config.js`, `.ssl/` und `.sessions/` enthalten Geheimnisse und sind nicht im Git.
+- Dateien werden ausschließlich als Download ausgeliefert (PDFs inline für die Vorschau).
 
 ---
 
@@ -126,6 +148,9 @@ bash update.sh
 ```
 
 Oder über den **Update-Button in der iOS-App** – erfordert, dass der Server per `git clone` installiert wurde.
+
+Das Update macht nur Fast-Forward-Pulls, installiert Abhängigkeiten exakt nach `package-lock.json`
+und setzt bei einem Fehler automatisch auf den vorherigen Stand zurück. Ausgabe: `update.log`.
 
 ---
 
@@ -138,6 +163,8 @@ Oder über den **Update-Button in der iOS-App** – erfordert, dass der Server p
 | `auth.js`         | Login & Session                     |
 | `fileUtils.js`    | Datei-Hilfsfunktionen               |
 | `pathsStore.js`   | Pfad-Verwaltung                     |
+| `sessionStore.js` | Persistenter Session-Store          |
+| `favoritesStore.js` | Favoriten                         |
 | `install.sh`      | Ersteinrichtung                     |
 | `update.sh`       | Update-Script                       |
 | `setup-ssl.sh`    | SSL nachträglich einrichten         |

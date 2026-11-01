@@ -24,3 +24,8 @@ release-tag.sh
 # ssl
 .ssl/
 .ssl-config.json
+# laufzeitdaten
+favorites.json
+.sessions/
+update.log
+.env.bak.*

@@ -3,7 +3,7 @@ const express = require('express');
 const serveIndex = require('serve-index');
 const path = require('path');
 const fs = require('fs/promises');
-const { exec, execFile } = require('child_process'); // Git-Check + update.sh
+const { exec } = require('child_process'); // Git-Check + update.sh
 
 const config = require('./config');
 const auth = require('./auth');
@@ -14,31 +14,22 @@ const pkg = require('./package.json'); // Version aus package.json
 
 const router = express.Router();
 
-const trustProxy = !!config.trustProxy;
-
 // -----------------------------------------------------------------------------
 // IP-Whitelist Middleware
 // -----------------------------------------------------------------------------
 function ipWhitelist(req, res, next) {
-  const remoteAddr = (req.connection && req.connection.remoteAddress) || req.socket.remoteAddress || '';
-  const forwardedFor = req.headers['x-forwarded-for'];
-  const clientIpRaw = trustProxy && forwardedFor
-    ? forwardedFor.split(',')[0].trim()
-    : remoteAddr;
-
-  let clientIp = clientIpRaw;
-  if (clientIpRaw.startsWith('::ffff:')) {
-    clientIp = clientIpRaw.slice(7);
+  // req.ip beachtet 'trust proxy' korrekt; ein vom Client gesendeter
+  // X-Forwarded-For-Eintrag wird so nicht blind übernommen.
+  let clientIp = req.ip || (req.socket && req.socket.remoteAddress) || '';
+  if (clientIp.startsWith('::ffff:')) {
+    clientIp = clientIp.slice(7);
   }
 
-  console.log(`Client IP: ${clientIp}`);
 
   if (config.whitelist.includes(clientIp)) {
-    console.log(`IP ${clientIp} ist in der Whitelist. Zugriff erlaubt.`);
     return next();
   }
 
-  console.log(`IP ${clientIp} ist nicht in der Whitelist. Weiter zur Authentifizierung.`);
   return auth.checkAuthentication(req, res, next);
 }
 
@@ -100,15 +91,16 @@ router.get('/main.html', ipWhitelist, auth.checkAuthentication, (req, res) => {
 // Helper: Expert-Mode + sichtbare Roots
 // -----------------------------------------------------------------------------
 
-function isExpertMode(req) {
-  const raw = String(req.get('x-expert-mode') || '').toLowerCase();
-  return raw === 'true' || raw === '1' || raw === 'yes';
+// Expert-Mode wird ausschließlich serverseitig (config.expertMode bzw.
+// Env EXPERT_MODE=true) aktiviert – niemals durch Client-Header.
+function isExpertMode() {
+  return config.expertMode === true || process.env.EXPERT_MODE === 'true';
 }
 
 // Nur "sichere" Roots, wenn NICHT Expert-Mode
 function getVisibleRoots(req) {
   const all = getRoots();
-  if (isExpertMode(req)) {
+  if (isExpertMode()) {
     return all;
   }
   return all.filter(r => isUnderAllowedBase(r.path));
@@ -144,7 +136,9 @@ async function resolveAndValidatePath(relativePath, req) {
   const realPath = await fs.realpath(resolved.target).catch(() => null);
   if (!realPath) return null;
 
-  const base = path.resolve(resolved.base);
+  // Root selbst kann ein Symlink sein (z. B. /var -> /private/var auf macOS)
+  const base = await fs.realpath(resolved.base).catch(() => null);
+  if (!base) return null;
   if (realPath !== base && !realPath.startsWith(base + path.sep)) {
     return null;
   }
@@ -212,7 +206,6 @@ function checkForUpdate() {
 
 router.get('/api/paths', auth.requireAuthApi, (req, res) => {
   const roots = getRoots(); // In Settings immer ALLE zeigen
-  console.log('[api/paths] GET ->', roots);
   res.json({ roots });
 });
 
@@ -223,7 +216,7 @@ router.post('/api/paths', auth.requireAuthApi, async (req, res) => {
     return res.status(400).json({ error: 'roots muss ein Array sein' });
   }
 
-  const allowDangerous = isExpertMode(req);
+  const allowDangerous = isExpertMode();
   const { cleaned, errors } = validateRootsInput(roots, { allowDangerous });
 
   if (cleaned.length === 0) {
@@ -234,7 +227,6 @@ router.post('/api/paths', auth.requireAuthApi, async (req, res) => {
   }
 
   setRoots(cleaned);
-  console.log('[api/paths] Root-Pfade aktualisiert:', getRoots());
 
   return res.status(errors.length > 0 ? 207 : 200).json({
     ok: errors.length === 0,
@@ -279,13 +271,10 @@ router.post('/api/favorites', auth.requireAuthApi, (req, res) => {
 router.get('/api/list', auth.requireAuthApi, async (req, res) => {
   try {
     const relativePath = req.query.path ? String(req.query.path).trim() : '';
-    console.log('[api/list] relativePath =', `"${relativePath}"`,
-                'expertMode =', isExpertMode(req));
 
     // Root-Liste
     if (!relativePath) {
       const roots = getVisibleRoots(req);
-      console.log('[api/list] -> Root-Liste', roots);
       return res.json({
         currentPath: '',
         items: roots.map(r => ({ name: r.name, type: 'folder' }))
@@ -293,7 +282,6 @@ router.get('/api/list', auth.requireAuthApi, async (req, res) => {
     }
 
     const resolved = await resolveAndValidatePath(relativePath, req);
-    console.log('[api/list] resolved =', resolved);
 
     if (!resolved) {
       return res.status(400).json({ error: 'Ungültiger Pfad' });
@@ -350,33 +338,37 @@ router.get('/api/list', auth.requireAuthApi, async (req, res) => {
 router.get('/api/file', auth.requireAuthApi, async (req, res) => {
   try {
     const relativePath = req.query.path ? String(req.query.path).trim() : '';
-    console.log('[api/file] relativePath =', `"${relativePath}"`,
-                'expertMode =', isExpertMode(req));
 
     if (!relativePath) {
       return res.status(400).json({ error: 'path fehlt' });
     }
 
     const resolved = await resolveAndValidatePath(relativePath, req);
-    console.log('[api/file] resolved =', resolved);
 
     if (!resolved) {
-      console.log('[api/file] resolveTargetPath -> null');
       return res.status(400).json({ error: 'Ungültiger Pfad' });
     }
 
     const stat = await fs.stat(resolved.realPath).catch(err => {
-      console.log('[api/file] fs.stat error:', err.message);
       return null;
     });
 
     if (!stat || !stat.isFile()) {
-      console.log('[api/file] Kein File an Pfad:', resolved.realPath);
       return res.status(404).json({ error: 'Datei nicht gefunden' });
     }
 
-    console.log('[api/file] Sende Datei:', resolved.realPath);
-    return res.sendFile(resolved.realPath);
+    res.set('X-Content-Type-Options', 'nosniff');
+
+    // PDFs dürfen für die Vorschau inline geliefert werden (feste Content-Type).
+    // Alles andere (HTML, SVG, JS, ...) nur als Download + CSP-Sandbox, damit
+    // Inhalte aus einem Root nie im Origin der App ausgeführt werden.
+    if (path.extname(resolved.realPath).toLowerCase() === '.pdf') {
+      res.type('application/pdf');
+      return res.sendFile(resolved.realPath, { dotfiles: 'allow' });
+    }
+
+    res.set('Content-Security-Policy', "default-src 'none'; sandbox");
+    return res.download(resolved.realPath, path.basename(resolved.realPath), { dotfiles: 'allow' });
   } catch (err) {
     console.error('[api/file] Fehler beim Senden:', err);
     res.status(500).json({ error: 'Fehler beim Senden der Datei' });
@@ -428,9 +420,15 @@ router.post('/api/delete', auth.requireAuthApi, async (req, res) => {
 // -----------------------------------------------------------------------------
 // /api/version – Version aus package.json + Update-Status nur über Commits
 // -----------------------------------------------------------------------------
+let versionCache = { at: 0, info: null };
+const VERSION_CACHE_MS = 5 * 60 * 1000;
+
 router.get('/api/version', auth.requireAuthApi, async (req, res) => {
   try {
-    const info = await checkForUpdate();
+    if (!versionCache.info || Date.now() - versionCache.at > VERSION_CACHE_MS) {
+      versionCache = { at: Date.now(), info: await checkForUpdate() };
+    }
+    const info = versionCache.info;
     const updateAvailable = info && info.updateAvailable === true;
 
     res.json({
@@ -450,6 +448,10 @@ router.get('/api/version', auth.requireAuthApi, async (req, res) => {
 let updateRunning = false;
 
 router.post('/api/update', auth.requireAuthApi, (req, res) => {
+  if (config.allowRemoteUpdate === false) {
+    return res.status(403).json({ ok: false, message: 'Update über die API ist deaktiviert' });
+  }
+
   if (updateRunning) {
     return res.status(409).json({
       ok: false,
@@ -463,9 +465,12 @@ router.post('/api/update', auth.requireAuthApi, (req, res) => {
 
   console.log('[api/update] Starte Update-Script:', scriptPath);
 
-  const child = execFile('bash', [scriptPath], {
+  // Ausgabe in update.log, damit fehlgeschlagene Updates nachvollziehbar sind
+  const logFd = require('fs').openSync(path.join(__dirname, 'update.log'), 'a');
+  const child = require('child_process').spawn('bash', [scriptPath], {
     cwd: __dirname,
-    detached: true
+    detached: true,
+    stdio: ['ignore', logFd, logFd]
   });
 
   child.unref();

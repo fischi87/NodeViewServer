@@ -23,11 +23,10 @@ function readFavoritesFromDisk() {
 
 function writeFavoritesToDisk(favorites) {
   try {
-    fs.writeFileSync(
-      FAVORITES_FILE,
-      JSON.stringify({ favorites }, null, 2),
-      'utf8'
-    );
+    // atomar schreiben, damit ein Absturz die Datei nicht halb geschrieben hinterlässt
+    const tmp = FAVORITES_FILE + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify({ favorites }, null, 2), 'utf8');
+    fs.renameSync(tmp, FAVORITES_FILE);
   } catch (err) {
     console.error('[favoritesStore] Fehler beim Schreiben:', err);
   }

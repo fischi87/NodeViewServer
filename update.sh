@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-set -e
+set -euo pipefail
 
 echo "===================================="
 echo "   Update deines NodeViewServers"
@@ -9,36 +9,44 @@ echo
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 cd "$SCRIPT_DIR"
 
-# 1) git pull (falls .git vorhanden)
-if [ -d .git ]; then
-  echo "Hole neuesten Stand von GitHub..."
-  git fetch --quiet        # holt neue Commits (keine Tags mehr)
-  git pull
-  echo
-else
-  echo "Hinweis: kein .git-Verzeichnis – überspringe git pull."
-  echo
+if [ ! -d .git ]; then
+  echo "Fehler: kein .git-Verzeichnis – Update nur für per 'git clone' installierte Server."
+  exit 1
 fi
 
-# 2) npm installieren / aktualisieren
-echo "Installiere/aktualisiere NPM-Abhängigkeiten..."
-npm install
+OLD_HEAD="$(git rev-parse HEAD)"
+
+rollback() {
+  echo
+  echo "Update fehlgeschlagen – setze auf vorherigen Stand ($OLD_HEAD) zurück..."
+  git reset --hard "$OLD_HEAD" >/dev/null
+  npm ci --omit=dev --no-audit --no-fund || true
+  echo "Rollback abgeschlossen. Der Server läuft mit dem alten Stand weiter."
+}
+trap rollback ERR
+
+# 1) Nur Fast-Forward: lokale Änderungen/abweichende Historie brechen ab statt zu mergen
+echo "Hole neuesten Stand von GitHub..."
+git fetch --quiet
+git merge --ff-only '@{u}'
 echo
 
-# 3) Server neu starten (PM2 falls vorhanden)
-if command -v pm2 >/dev/null 2>&1; then
-  echo "PM2 ist installiert."
-  if pm2 list | grep -q "nodeviewserver"; then
-    echo "Starte PM2-Prozess 'nodeviewserver' neu..."
-    pm2 restart nodeviewserver
-  else
-    echo "Kein PM2-Prozess namens 'nodeviewserver' gefunden."
-    echo "Starte ihn mit:"
-    echo "  pm2 start server.js --name nodeviewserver"
-  fi
+# 2) Abhängigkeiten exakt nach package-lock.json installieren
+echo "Installiere NPM-Abhängigkeiten..."
+npm ci --omit=dev --no-audit --no-fund
+echo
+
+# 3) Konfiguration kurz prüfen, bevor neu gestartet wird
+node -e "require('./routes')" >/dev/null 2>&1 || { echo "Fehler: Server-Code lässt sich nicht laden."; false; }
+
+trap - ERR
+
+# 4) Neustart
+if command -v pm2 >/dev/null 2>&1 && pm2 describe nodeviewserver >/dev/null 2>&1; then
+  echo "Starte PM2-Prozess 'nodeviewserver' neu..."
+  pm2 restart nodeviewserver
 else
-  echo "PM2 ist nicht installiert."
-  echo "Starte den Server manuell mit:"
+  echo "Kein PM2-Prozess 'nodeviewserver' gefunden – bitte Server manuell neu starten:"
   echo "  npm start"
 fi
 

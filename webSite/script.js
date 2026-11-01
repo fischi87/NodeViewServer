@@ -26,7 +26,8 @@ function escapeHtml(s) {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;');
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
 }
 
 // ─── DATEINAME-FORMATIERUNG ──────────────────────────────────────────────────
@@ -185,7 +186,7 @@ async function loadSidebar() {
       const item = document.createElement('div');
       item.className = 'sidebar__item';
       item.dataset.root = root.name;
-      item.innerHTML = `${ICON_FOLDER}<span>${root.name}</span>`;
+      item.innerHTML = `${ICON_FOLDER}<span>${escapeHtml(root.name)}</span>`;
       item.querySelector('.file-row__icon')?.classList.replace('file-row__icon', 'sidebar__item-icon');
       item.addEventListener('click', () => {
         currentPath = root.name;
@@ -472,7 +473,7 @@ function openPreviewModal(fileName, url, type) {
     </video>`;
 
   } else if (type === 'image') {
-    body.innerHTML = `<img src="${url}" alt="${fileName}">`;
+    body.innerHTML = `<img src="${url}" alt="${escapeHtml(fileName)}">`;
 
   } else if (type === 'audio') {
     body.innerHTML = `<audio controls autoplay>
@@ -481,7 +482,7 @@ function openPreviewModal(fileName, url, type) {
     </audio>`;
 
   } else if (type === 'pdf') {
-    body.innerHTML = `<iframe src="${url}" title="${fileName}"></iframe>`;
+    body.innerHTML = `<iframe src="${url}" title="${escapeHtml(fileName)}"></iframe>`;
 
   } else if (type === 'text') {
     body.innerHTML = '<div class="file-list__empty">Lädt …</div>';
@@ -656,8 +657,8 @@ function renderSettingsPaths() {
     const row = document.createElement('div');
     row.className = 'settings-path-row';
     row.innerHTML = `
-      <span class="settings-path-row__name">${root.name}</span>
-      <span class="settings-path-row__path">${root.path}</span>
+      <span class="settings-path-row__name">${escapeHtml(root.name)}</span>
+      <span class="settings-path-row__path">${escapeHtml(root.path)}</span>
       <button class="settings-path-row__del" aria-label="Entfernen" data-index="${i}">✕</button>
     `;
     row.querySelector('.settings-path-row__del').addEventListener('click', () => {

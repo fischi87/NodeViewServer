@@ -73,11 +73,10 @@ function readRootsFromDisk() {
 
 function writeRootsToDisk(roots) {
   try {
-    fs.writeFileSync(
-      CONFIG_FILE,
-      JSON.stringify({ roots }, null, 2),
-      'utf8'
-    );
+    // atomar schreiben, damit ein Absturz die Datei nicht halb geschrieben hinterlässt
+    const tmp = CONFIG_FILE + '.tmp';
+    fs.writeFileSync(tmp, JSON.stringify({ roots }, null, 2), 'utf8');
+    fs.renameSync(tmp, CONFIG_FILE);
     console.log('[pathsStore] roots in paths.json gespeichert.');
   } catch (err) {
     console.error('[pathsStore] Fehler beim Schreiben von paths.json:', err);

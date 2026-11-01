@@ -29,6 +29,10 @@ if [[ "$USE_HTTPS" =~ ^[Yy]$ ]]; then
   if [ "$SSL_CHOICE" == "1" ]; then
     read -p "Hostname für das Zertifikat (z.B. meinserver.de oder IP) [NodeViewServer]: " CERT_CN
     CERT_CN=${CERT_CN:-NodeViewServer}
+    if [[ ! "$CERT_CN" =~ ^[A-Za-z0-9.-]+$ ]]; then
+      echo "Fehler: Ungültiger Hostname/IP für das Zertifikat."
+      exit 1
+    fi
 
     echo "Generiere selbstsigniertes Zertifikat für '$CERT_CN' in .ssl/ ..."
     mkdir -p .ssl
@@ -44,6 +48,12 @@ if [[ "$USE_HTTPS" =~ ^[Yy]$ ]]; then
     
     # OpenSSL Config für SAN (Subject Alternative Name) erstellen
     # Das ist für iOS notwendig (nur CN reicht oft nicht mehr).
+    if [[ "$CERT_CN" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+      CN_SAN="IP.1 = $CERT_CN"
+    else
+      CN_SAN="DNS.1 = $CERT_CN"
+    fi
+
     cat > .ssl/openssl.cnf <<EOF
 [req]
 distinguished_name = req_distinguished_name
@@ -59,12 +69,15 @@ extendedKeyUsage = serverAuth
 subjectAltName = @alt_names
 
 [alt_names]
-DNS.1 = $CERT_CN
+$CN_SAN
+DNS.2 = localhost
+IP.2 = 127.0.0.1
 EOF
 
     # Zertifikat mit SAN generieren
-    openssl req -x509 -newkey rsa:4096 -keyout .ssl/key.pem -out .ssl/cert.pem -days 365 -nodes -config .ssl/openssl.cnf 2>/dev/null
+    openssl req -x509 -newkey rsa:4096 -keyout .ssl/key.pem -out .ssl/cert.pem -days 825 -nodes -config .ssl/openssl.cnf 2>/dev/null
 
+    chmod 600 .ssl/key.pem
     SSL_KEY_PATH=".ssl/key.pem"
     SSL_CERT_PATH=".ssl/cert.pem"
     echo "Zertifikat erstellt."

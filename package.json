@@ -1,15 +1,14 @@
 {
   "name": "NodeViewServer",
-  "version": "1.0.0",
-  "main": "auth.js",
+  "version": "1.1.0",
+  "main": "server.js",
   "dependencies": {
     "bcrypt": "^6.0.0",
     "dotenv": "^17.2.3",
     "express": "^5.1.0",
     "express-rate-limit": "^8.2.1",
     "express-session": "^1.18.2",
-    "serve-index": "^1.9.1",
-    "whatwg-url": "^5.0.0"
+    "serve-index": "^1.9.1"
   },
   "scripts": {
     "test": "jest",
@@ -18,10 +17,13 @@
   "keywords": [],
   "author": "Axel Fischer",
   "license": "ISC",
-  "description": "",
+  "description": "Datei-Browser-Server für die NodeView-App",
   "devDependencies": {
     "jest": "^30.2.0",
     "nodemon": "^3.1.11",
     "supertest": "^7.1.4"
+  },
+  "engines": {
+    "node": ">=18"
   }
 }
