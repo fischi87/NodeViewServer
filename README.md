@@ -68,6 +68,16 @@ Das Script richtet automatisch ein:
 
 ---
 
+### Kurz-Checkliste für eine neue Installation
+
+1. `git clone` + `bash install.sh` (Port, Verzeichnis, Benutzer, Passwort; PM2 mit Autostart bestätigen).
+2. Im Browser testen: `http(s)://<SERVER-IP>:<PORT>` im Heimnetz.
+3. Von unterwegs erreichen: [Tailscale einrichten](#-zugriff-von-unterwegs-mit-tailscale-empfohlen)
+   (`bash setup-ssl.sh` → Option 3, Key Expiry abschalten, Tailscale-App auf dem Handy).
+4. Updates später: Update-Button in der App oder `bash update.sh`.
+
+---
+
 ## 🔒 HTTPS einrichten (empfohlen)
 
 Wird während `install.sh` angeboten. Nachträglich aktivieren:
@@ -85,32 +95,123 @@ bash disable-ssl.sh
 > Das selbstsignierte Zertifikat enthält einen **Subject Alternative Name (SAN)**,
 > damit die iOS-App (iOS 13+) und moderne Browser die Verbindung akzeptieren.
 
+`setup-ssl.sh` bietet drei Varianten an:
+
+| Option | Wann | Browser-Warnung |
+|---|---|---|
+| 1) Selbstsigniert | Nur im Heimnetz, schnell eingerichtet | ja (einmal bestätigen) |
+| 2) Vorhandenes Zertifikat | Du hast schon eins (z. B. Let's Encrypt) | nein |
+| 3) Tailscale | Zugriff von unterwegs, auch bei DS-Lite | nein – siehe [Zugriff von unterwegs](#-zugriff-von-unterwegs-mit-tailscale-empfohlen) |
+
 ---
 
-## 🌍 Zugriff von unterwegs (empfohlen: Tailscale)
+## 🌍 Zugriff von unterwegs mit Tailscale (empfohlen)
 
-Den Server **nicht per Portfreigabe ins Internet stellen** – bei DS-Lite-Anschlüssen ist
-eine IPv4-Portfreigabe ohnehin nicht möglich. Stattdessen **Tailscale** (privates VPN,
-kostenlos für Privatnutzung): Es braucht keine Freigabe, der Server ist nicht öffentlich
-erreichbar, und es gibt ein echtes HTTPS-Zertifikat ohne Browser-Warnung.
+**Problem:** Eine Portfreigabe im Router ist unsicher und bei **DS-Lite-Anschlüssen** (keine eigene
+öffentliche IPv4) gar nicht möglich. Außerdem warnt der Browser bei einem selbstsignierten
+HTTPS-Zertifikat immer.
 
-1. Auf dem Server ausführen und **Option 3 (Tailscale-Zertifikat)** wählen:
+**Lösung:** [Tailscale](https://tailscale.com) ist ein privates VPN. Nur deine eigenen Geräte
+(Server, Handy, PC) sehen sich darüber. Es braucht **keine Portfreigabe**, der Server ist **nicht
+öffentlich erreichbar**, und es gibt ein **echtes HTTPS-Zertifikat ohne Browser-Warnung**.
+Für Privatnutzung ist Tailscale kostenlos (Tarif und Bedingungen bei tailscale.com prüfen).
 
-   ```bash
-   bash setup-ssl.sh
-   pm2 restart nodeviewserver
-   ```
+Wichtig zu wissen:
 
-   Das Skript installiert Tailscale bei Bedarf (Linux, offizielles Skript von tailscale.com),
-   zeigt einen Anmelde-Link für den Browser und holt danach das Zertifikat.
-2. Wenn das Skript es verlangt: in der [Tailscale-Admin-Konsole](https://login.tailscale.com/admin/dns) unter **DNS** *MagicDNS* und *HTTPS Certificates* aktivieren und im Skript Enter drücken (das lässt sich nicht automatisieren).
-3. Tailscale-App auf Handy/PC installieren und mit **demselben Konto** anmelden.
-4. Aufruf von überall (mit aktivem Tailscale): `https://<servername>.<netz>.ts.net:<PORT>`
+- Tailscale auf dem Server leitet **keinen anderen Datenverkehr um**. Andere Dienste auf dem
+  Rechner (z. B. ioBroker) laufen unverändert über das normale Netzwerk weiter.
+- Auf dem Handy läuft nur der Verkehr zu deinen eigenen Geräten durch den Tunnel, normales
+  Internet geht direkt. Das VPN bleibt im Hintergrund an, bis du es in der App ausschaltest,
+  und verbraucht im Leerlauf kaum Akku.
+- **Jedes Gerät, das auf den Server zugreifen soll, braucht Tailscale.** Ohne Tailscale gibt es
+  von außen keinen Zugriff (das ist gewollt).
 
-Das Zertifikat gilt ca. 90 Tage. `setup-ssl.sh` trägt auf Wunsch einen Cronjob ein, der es
-wöchentlich über `renew-tailscale-cert.sh` erneuert; der laufende Server lädt es täglich
-neu, ein Neustart ist nicht nötig. Auf dem Handy kann Tailscale als „Verbindung bei Bedarf“
-laufen und verbraucht dann kaum Akku. Geräte ohne Tailscale haben **keinen** Zugriff.
+### Einrichtung (einmalig, ca. 15 Minuten)
+
+**1. Tailscale-Konto anlegen**
+Auf [login.tailscale.com](https://login.tailscale.com) mit einem Konto anmelden (Google, Microsoft,
+Apple o. Ä.). Dieses Konto brauchst du später für **alle** Geräte.
+
+**2. Auf dem Server: Zertifikat einrichten**
+
+```bash
+cd ~/NodeViewServer
+bash update.sh          # sicherstellen, dass der neueste Stand installiert ist
+bash setup-ssl.sh       # y  →  Option 3 (Tailscale-Zertifikat)
+pm2 restart nodeviewserver
+```
+
+Das Skript erledigt der Reihe nach:
+
+1. Tailscale installieren, falls es fehlt (Linux, offizielles Skript von tailscale.com, braucht `sudo`).
+2. Server anmelden: Es zeigt einen **Link**, den du im Browser öffnest und mit deinem Konto bestätigst.
+3. Zertifikat für den Server-Namen (`<servername>.<netz>.ts.net`) holen und eintragen.
+4. Auf Wunsch (Standard: ja) einen **Cronjob** einrichten, der das Zertifikat jede Woche erneuert.
+
+**3. In der Tailscale-Admin-Konsole (lässt sich nicht automatisieren)**
+Auf [login.tailscale.com/admin/dns](https://login.tailscale.com/admin/dns):
+
+- **MagicDNS** aktivieren
+- **HTTPS Certificates** aktivieren
+
+Das Skript fragt danach, sobald es nötig ist, und wartet auf Enter. Lass **„Override local DNS“**
+ausgeschaltet, damit die DNS-Einstellungen des Servers unverändert bleiben.
+
+**4. Wichtig: Key Expiry für den Server abschalten**
+Tailscale-Geräte müssen sich standardmäßig nach etwa **180 Tagen neu anmelden**. Läuft das beim
+Server ab, ist er plötzlich nicht mehr erreichbar. Deshalb:
+
+1. [login.tailscale.com/admin/machines](https://login.tailscale.com/admin/machines) öffnen
+2. Beim Server die drei Punkte `⋯` anklicken
+3. **Disable key expiry** wählen
+
+(Für Handy und PC kann die Neuanmeldung bleiben.)
+
+**5. Auf dem Handy / PC**
+
+1. Tailscale-App installieren (App Store, Play Store oder [tailscale.com/download](https://tailscale.com/download)).
+2. Mit **demselben Konto** anmelden.
+3. Den Schalter einschalten (beim ersten Mal die VPN-Erlaubnis bestätigen).
+4. Im Browser öffnen: `https://<servername>.<netz>.ts.net:<PORT>`
+   (den genauen Namen zeigt `setup-ssl.sh` am Ende an; der Port steht in `config.js`).
+
+**6. Die NodeView-iOS-App** auf dieselbe Adresse umstellen. Auch zu Hause besser den
+Tailscale-Namen verwenden, denn über die alte LAN-IP passt das Zertifikat nicht zum Namen
+(Browser-Warnung).
+
+### Prüfen, ob alles läuft
+
+- **Von außen testen:** WLAN am Handy ausschalten und die Adresse über Mobilfunk öffnen.
+- **Server-Log:** `pm2 logs nodeviewserver` → es muss `HTTPS-Server läuft auf https://localhost:<PORT>` erscheinen.
+- **Cronjob:** `crontab -l` → eine Zeile mit `renew-tailscale-cert.sh` (montags 04:17 Uhr).
+- **Zertifikat manuell erneuern:** `bash renew-tailscale-cert.sh` (der Server lädt es innerhalb von 24 Stunden selbst neu, kein Neustart nötig). Ausgabe des Cronjobs: `cert-renew.log`.
+
+### Zertifikat und Verlängerung
+
+Das Tailscale-Zertifikat gilt ca. **90 Tage**. Der Cronjob erneuert es wöchentlich über
+`renew-tailscale-cert.sh`; der laufende Server liest es täglich neu ein. Läuft auf dem Rechner kein
+Cron-Dienst (selten), das Skript alle paar Wochen von Hand ausführen.
+
+### Mehrere Personen / Geräte
+
+- **Eigenes Konto pro Haushalt** (am einfachsten): Der Vater legt ein eigenes Tailscale-Konto an
+  und richtet damit **seinen** Server und seine Geräte ein. Das ist ein getrenntes Netz.
+- Ein Server kann auch mit einer anderen Person **geteilt** werden („Share“ in der Admin-Konsole
+  bei den Maschinen), ohne dass sie in dein ganzes Netz kommt.
+- **Achtung:** Geräte im selben Tailscale-Netz erreichen **alle** Ports des Servers, nicht nur
+  NodeViewServer (z. B. auch die ioBroker-Admin-Oberfläche). Bei mehreren Personen im selben
+  Netz Zugriffsregeln (ACLs) in der Admin-Konsole verwenden.
+
+### Wenn etwas nicht klappt
+
+| Problem | Lösung |
+|---|---|
+| Seite lädt nicht | In der Tailscale-App prüfen: verbunden? Server in der Geräteliste? Passenden Port benutzt? |
+| Browser warnt trotz Tailscale | Statt der LAN-IP den Namen `….ts.net` verwenden. |
+| `setup-ssl.sh` meldet, das Zertifikat konnte nicht geholt werden | MagicDNS und HTTPS Certificates in der Admin-Konsole aktivieren, dann erneut. |
+| Server nach Monaten nicht mehr erreichbar | Key Expiry abgelaufen → `sudo tailscale up` auf dem Server, danach „Disable key expiry“ setzen. |
+| Zertifikat abgelaufen | `bash renew-tailscale-cert.sh`, danach `pm2 restart nodeviewserver`. |
+| Zurück zu HTTP / altem Zertifikat | `bash disable-ssl.sh` bzw. `bash setup-ssl.sh` mit Option 1 oder 2. |
 
 ---
 
