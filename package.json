@@ -1,6 +1,6 @@
 {
   "name": "NodeViewServer",
-  "version": "1.4.3",
+  "version": "1.4.4",
   "main": "server.js",
   "dependencies": {
     "bcrypt": "^6.0.0",

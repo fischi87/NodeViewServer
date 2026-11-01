@@ -319,3 +319,9 @@ und setzt bei einem Fehler automatisch auf den vorherigen Stand zurück. Ausgabe
 | `config.js`       | Konfiguration *(nicht im Git)*      |
 | `paths.json`      | Freigabe-Pfade *(nicht im Git)*     |
 | `.ssl/`           | SSL-Zertifikate *(nicht im Git)*    |
+
+---
+
+## 📄 Lizenz
+
+[ISC-Lizenz](LICENSE) – freie Nutzung, Änderung und Weitergabe, ohne Gewähr.
