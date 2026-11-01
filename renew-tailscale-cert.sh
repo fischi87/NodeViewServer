@@ -13,8 +13,7 @@ if [ ! -f "$HOST_FILE" ]; then
 fi
 HOST="$(cat "$HOST_FILE")"
 
-TS=(tailscale)
-"${TS[@]}" cert --help >/dev/null 2>&1 || { echo "Fehler: tailscale ist nicht installiert."; exit 1; }
+command -v tailscale >/dev/null 2>&1 || { echo "Fehler: tailscale ist nicht installiert."; exit 1; }
 
 run_cert() {
   "$@" cert --cert-file .ssl/cert.pem.new --key-file .ssl/key.pem.new "$HOST"

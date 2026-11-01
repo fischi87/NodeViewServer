@@ -94,17 +94,18 @@ eine IPv4-Portfreigabe ohnehin nicht möglich. Stattdessen **Tailscale** (privat
 kostenlos für Privatnutzung): Es braucht keine Freigabe, der Server ist nicht öffentlich
 erreichbar, und es gibt ein echtes HTTPS-Zertifikat ohne Browser-Warnung.
 
-1. Tailscale auf dem Server installieren ([tailscale.com/download](https://tailscale.com/download)) und `sudo tailscale up` ausführen.
-2. In der [Tailscale-Admin-Konsole](https://login.tailscale.com/admin/dns) unter **DNS** *MagicDNS* und *HTTPS Certificates* aktivieren.
-3. Tailscale-App auf Handy/PC installieren und mit demselben Konto anmelden.
-4. Auf dem Server das Zertifikat einrichten:
+1. Auf dem Server ausführen und **Option 3 (Tailscale-Zertifikat)** wählen:
 
    ```bash
-   bash setup-ssl.sh      # Option 3: Tailscale-Zertifikat
+   bash setup-ssl.sh
    pm2 restart nodeviewserver
    ```
 
-5. Aufruf von überall (mit aktivem Tailscale): `https://<servername>.<netz>.ts.net:<PORT>`
+   Das Skript installiert Tailscale bei Bedarf (Linux, offizielles Skript von tailscale.com),
+   zeigt einen Anmelde-Link für den Browser und holt danach das Zertifikat.
+2. Wenn das Skript es verlangt: in der [Tailscale-Admin-Konsole](https://login.tailscale.com/admin/dns) unter **DNS** *MagicDNS* und *HTTPS Certificates* aktivieren und im Skript Enter drücken (das lässt sich nicht automatisieren).
+3. Tailscale-App auf Handy/PC installieren und mit **demselben Konto** anmelden.
+4. Aufruf von überall (mit aktivem Tailscale): `https://<servername>.<netz>.ts.net:<PORT>`
 
 Das Zertifikat gilt ca. 90 Tage. `setup-ssl.sh` trägt auf Wunsch einen Cronjob ein, der es
 wöchentlich über `renew-tailscale-cert.sh` erneuert; der laufende Server lädt es täglich

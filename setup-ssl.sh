@@ -83,26 +83,61 @@ EOF
     SSL_CERT_PATH=".ssl/cert.pem"
     echo "Zertifikat erstellt."
   elif [ "$SSL_CHOICE" == "3" ]; then
+    # --- 1) Tailscale installieren, falls nötig -------------------------------
     if ! command -v tailscale >/dev/null 2>&1; then
-      echo "Fehler: Tailscale ist nicht installiert (https://tailscale.com/download)."
-      echo "Danach 'sudo tailscale up' ausführen und in der Tailscale-Admin-Konsole"
-      echo "unter DNS 'MagicDNS' und 'HTTPS Certificates' aktivieren."
-      exit 1
+      echo "Tailscale ist nicht installiert."
+      if [ "$(uname)" != "Linux" ]; then
+        echo "Bitte Tailscale von https://tailscale.com/download installieren und das Skript erneut starten."
+        exit 1
+      fi
+      read -p "Jetzt installieren (offizielles Skript von tailscale.com, benötigt sudo)? (y/n) [y]: " INSTALL_TS
+      INSTALL_TS=${INSTALL_TS:-y}
+      if [[ ! "$INSTALL_TS" =~ ^[Yy]$ ]]; then
+        echo "Abgebrochen. Installation: https://tailscale.com/download"
+        exit 1
+      fi
+      curl -fsSL https://tailscale.com/install.sh | sh
+      command -v tailscale >/dev/null 2>&1 || { echo "Fehler: Installation fehlgeschlagen."; exit 1; }
     fi
 
-    TS_HOST="$(tailscale status --json | node -e "
-      let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{
-        try{console.log((JSON.parse(d).Self.DNSName||'').replace(/\\.$/,''));}catch(e){}
-      });")"
-    if [[ ! "$TS_HOST" =~ ^[A-Za-z0-9.-]+\.ts\.net$ ]]; then
-      echo "Fehler: Tailscale-Name nicht gefunden. Läuft 'tailscale up' und ist MagicDNS aktiv?"
-      exit 1
+    # --- 2) Anmelden (falls noch nicht geschehen) -----------------------------
+    if ! tailscale status >/dev/null 2>&1; then
+      echo
+      echo "Tailscale ist noch nicht angemeldet. Gleich erscheint ein Link –"
+      echo "diesen im Browser öffnen und mit deinem Tailscale-Konto anmelden."
+      echo
+      sudo tailscale up --operator="$USER"
+    else
+      # Operator setzen, damit 'tailscale cert' ohne sudo funktioniert
+      sudo tailscale set --operator="$USER" >/dev/null 2>&1 || true
     fi
 
-    echo "Tailscale-Name dieses Servers: $TS_HOST"
+    # --- 3) Name ermitteln + Zertifikat holen (MagicDNS/HTTPS müssen aktiv sein) -
     mkdir -p .ssl
-    echo "$TS_HOST" > .ssl/tailscale-host
-    bash ./renew-tailscale-cert.sh
+    TS_OK="false"
+    for ATTEMPT in 1 2 3; do
+      TS_HOST="$(tailscale status --json 2>/dev/null | node -e "
+        let d='';process.stdin.on('data',c=>d+=c).on('end',()=>{
+          try{console.log((JSON.parse(d).Self.DNSName||'').replace(/\\.$/,''));}catch(e){}
+        });")"
+
+      if [[ "$TS_HOST" =~ ^[A-Za-z0-9.-]+\.ts\.net$ ]]; then
+        echo "Tailscale-Name dieses Servers: $TS_HOST"
+        echo "$TS_HOST" > .ssl/tailscale-host
+        if bash ./renew-tailscale-cert.sh; then TS_OK="true"; break; fi
+      fi
+
+      echo
+      echo "Das Zertifikat konnte noch nicht geholt werden. Bitte in der Tailscale-Admin-Konsole"
+      echo "  https://login.tailscale.com/admin/dns"
+      echo "unter 'DNS' MagicDNS und 'HTTPS Certificates' aktivieren."
+      read -p "Enter drücken, wenn erledigt (Versuch $ATTEMPT/3) … " _
+    done
+
+    if [ "$TS_OK" != "true" ]; then
+      echo "Fehler: Zertifikat konnte nicht geholt werden. Nichts wurde geändert."
+      exit 1
+    fi
 
     SSL_KEY_PATH=".ssl/key.pem"
     SSL_CERT_PATH=".ssl/cert.pem"
