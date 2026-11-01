@@ -469,7 +469,7 @@ function openPreviewModal(fileName, url, type) {
   body.innerHTML    = '';
 
   if (type === 'video') {
-    body.innerHTML = `<video controls autoplay>
+    body.innerHTML = `<video controls autoplay playsinline>
       <source src="${url}">
       Dein Browser unterstützt dieses Videoformat nicht.
     </video>`;
@@ -758,6 +758,14 @@ function showSettingsError(msg) {
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 
 document.addEventListener('DOMContentLoaded', () => {
+  // Ansicht (Auto / Handy / PC) – wirkt sofort
+  if (window.NVS && NVS.getViewMode) {
+    document.querySelectorAll('input[name="view-mode"]').forEach(r => {
+      r.checked = r.value === NVS.getViewMode();
+      r.addEventListener('change', () => NVS.setViewMode(r.value));
+    });
+  }
+
   fetchServerVersion();
 
   Promise.all([loadFavorites(), loadSidebar()]).then(() => {

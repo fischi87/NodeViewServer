@@ -20,6 +20,7 @@ Der Server läuft vollständig unter **Node.js** und ist durch ein Installations
 - 🔐 **Login-System** (bcrypt + persistente Sessions, überleben Neustarts)
 - 📂 **Pfad-Freigabe-System** (`paths.json`) – kompatibel mit der iOS-App
 - 📁 **File Browser API** für Dateien & Ordner
+- 📱 **Responsive Web-UI**: erkennt Handy, Tablet und PC automatisch (umschaltbar unter Einstellungen → Ansicht)
 - 🔒 **Rate Limiting**, CSRF-Schutz (Origin-Check), Security-Header, sichere Downloads
 - 🔧 **Automatische Konfiguration** durch `install.sh`
 - 🔄 **Update-System** mit `update.sh` und API-Update-Trigger
@@ -174,6 +175,7 @@ und setzt bei einem Fehler automatisch auf den vorherigen Stand zurück. Ausgabe
 | `server.js`       | Einstiegspunkt                      |
 | `routes.js`       | API-Routen                          |
 | `auth.js`         | Login & Session                     |
+| `webSite/`        | Web-UI (`device.js` erkennt Handy/PC, `mobile.css` Handy-Layout) |
 | `fileUtils.js`    | Datei-Hilfsfunktionen               |
 | `pathsStore.js`   | Pfad-Verwaltung                     |
 | `sessionStore.js` | Persistenter Session-Store          |

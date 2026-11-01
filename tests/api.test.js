@@ -26,6 +26,13 @@ describe('Server API Integration', () => {
         expect(res.statusCode).toBe(401);
     });
 
+    test('Geräteerkennung und Handy-CSS werden ausgeliefert', async () => {
+        for (const f of ['device.js', 'mobile.css']) {
+            const res = await request(app).get('/' + f);
+            expect(res.statusCode).toBe(200);
+        }
+    });
+
     test('GET /api/version ohne Auth sollte 401 liefern', async () => {
         const res = await request(app).get('/api/version');
         expect(res.statusCode).toBe(401);

@@ -1,0 +1,254 @@
+/* -----------------------------------------------------------------------------
+   NodeViewServer – Darstellung für Handy und Tablet
+   Greift nur, wenn device.js <html data-device="mobile|tablet"> gesetzt hat.
+   ----------------------------------------------------------------------------- */
+
+html[data-device="mobile"],
+html[data-device="tablet"] {
+  -webkit-text-size-adjust: 100%;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* ─── GEMEINSAM (Handy + Tablet): Touch-Bedienung ────────────────────────── */
+
+html[data-device="mobile"] .file-row__actions,
+html[data-device="tablet"] .file-row__actions { opacity: 1; }
+
+html[data-device="mobile"] .file-row:hover,
+html[data-device="tablet"] .file-row:hover { background: transparent; }
+html[data-device="mobile"] .file-row:active,
+html[data-device="tablet"] .file-row:active { background: var(--bg-hover); }
+
+html[data-device="mobile"] .btn-delete,
+html[data-device="mobile"] .btn-download,
+html[data-device="mobile"] .btn-favorite,
+html[data-device="tablet"] .btn-delete,
+html[data-device="tablet"] .btn-download,
+html[data-device="tablet"] .btn-favorite {
+  min-width: 40px;
+  min-height: 40px;
+  font-size: 1rem;
+  border-color: var(--border);
+}
+html[data-device="mobile"] .btn-delete,
+html[data-device="tablet"] .btn-delete {
+  font-size: 0.78rem;
+  padding: 0 0.8rem;
+  border-color: rgba(248, 113, 113, 0.28);
+}
+
+/* ─── TABLET ──────────────────────────────────────────────────────────────── */
+
+html[data-device="tablet"] .main-layout { grid-template-columns: 170px 1fr; }
+html[data-device="tablet"] .sidebar__item { padding: 0.7rem 1rem; font-size: 0.9rem; }
+html[data-device="tablet"] .file-row td { padding: 0.8rem 1.25rem; }
+html[data-device="tablet"] .file-row__label { max-width: 60vw; }
+
+/* ─── HANDY ───────────────────────────────────────────────────────────────── */
+
+html[data-device="mobile"] body {
+  font-size: 15px;
+  min-height: 100dvh;
+}
+
+html[data-device="mobile"] .app-shell {
+  height: 100dvh;
+  min-height: 0;
+}
+
+html[data-device="mobile"] .footer { display: none; }
+
+/* Top-Bar: kompakt, Safe-Area (Notch) berücksichtigen */
+html[data-device="mobile"] .top-bar {
+  height: calc(52px + env(safe-area-inset-top));
+  padding: env(safe-area-inset-top) max(0.75rem, env(safe-area-inset-right)) 0 max(0.75rem, env(safe-area-inset-left));
+}
+html[data-device="mobile"] .top-bar__brand { min-width: 0; gap: 0.5rem; }
+html[data-device="mobile"] .top-bar__logo { font-size: 0.95rem; }
+html[data-device="mobile"] .top-bar__version { font-size: 0.7rem; }
+html[data-device="mobile"] .top-bar__actions { gap: 0.4rem; }
+html[data-device="mobile"] .top-bar__btn-favorites,
+html[data-device="mobile"] .top-bar__btn-settings { width: 40px; height: 40px; }
+/* Version ausblenden (Platz), Abmelden als Symbol-Button */
+html[data-device="mobile"] #server-version { display: none; }
+html[data-device="mobile"] .top-bar .btn-logout {
+  font-size: 0;
+  width: 40px;
+  height: 40px;
+  padding: 0;
+  background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2394a3b8' stroke-width='1.8' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4'/%3E%3Cpolyline points='16 17 21 12 16 7'/%3E%3Cline x1='21' y1='12' x2='9' y2='12'/%3E%3C/svg%3E") center / 18px no-repeat;
+}
+
+/* Update-Banner untereinander */
+html[data-device="mobile"] .update-banner {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 0.6rem;
+  text-align: center;
+}
+html[data-device="mobile"] .btn-update { min-height: 44px; }
+
+/* Layout: Bereiche als Chip-Leiste oben, darunter die Liste */
+html[data-device="mobile"] .main-layout {
+  grid-template-columns: 1fr;
+  grid-template-rows: auto minmax(0, 1fr);
+}
+
+html[data-device="mobile"] .sidebar {
+  flex-direction: row;
+  gap: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  border-right: none;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  overflow-y: hidden;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+html[data-device="mobile"] .sidebar::-webkit-scrollbar { display: none; }
+html[data-device="mobile"] .sidebar__label { display: none; }
+html[data-device="mobile"] .sidebar__item {
+  flex-shrink: 0;
+  min-height: 40px;
+  padding: 0 0.95rem;
+  border: 1px solid var(--border-strong);
+  border-radius: 999px;
+  white-space: nowrap;
+  font-size: 0.88rem;
+}
+html[data-device="mobile"] .sidebar__item.active {
+  border-color: var(--accent-border);
+  background: var(--accent-dim);
+}
+
+/* Breadcrumb: eine Zeile, seitlich wischbar */
+html[data-device="mobile"] .content__header {
+  padding: 0 0.75rem;
+  min-height: 44px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+html[data-device="mobile"] .content__header::-webkit-scrollbar { display: none; }
+html[data-device="mobile"] .breadcrumb { white-space: nowrap; flex-wrap: nowrap; }
+
+/* Dateiliste: Tabelle wird zu Karten (Name oben, Größe/Datum + Aktionen darunter) */
+html[data-device="mobile"] .file-list { -webkit-overflow-scrolling: touch; padding-bottom: env(safe-area-inset-bottom); }
+
+html[data-device="mobile"] .file-list__table,
+html[data-device="mobile"] .file-list__table tbody { display: block; width: 100%; }
+html[data-device="mobile"] .file-list__table thead { display: none; }
+
+html[data-device="mobile"] .file-row {
+  display: grid;
+  grid-template-columns: minmax(0, auto) minmax(0, auto) 1fr;
+  column-gap: 0.75rem;
+  row-gap: 0.15rem;
+  align-items: center;
+  padding: 0.7rem 0.9rem 0.7rem;
+  border-bottom: 1px solid var(--border);
+}
+html[data-device="mobile"] .file-row td {
+  display: block;
+  padding: 0;
+  border: none;
+  min-width: 0;
+}
+html[data-device="mobile"] .file-row td:first-child { grid-column: 1 / -1; grid-row: 1; }
+html[data-device="mobile"] .file-row td[colspan] { grid-column: 1 / -1; }
+
+html[data-device="mobile"] .file-row__meta {
+  grid-row: 2;
+  text-align: left;
+  font-size: 0.74rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+html[data-device="mobile"] .file-row td.file-row__actions {
+  display: flex;
+  grid-column: 3;
+  grid-row: 2;
+  justify-self: end;
+  align-items: center;
+  gap: 0.4rem;
+  margin-top: 0.35rem;
+}
+
+html[data-device="mobile"] .file-row__name { gap: 0.7rem; }
+html[data-device="mobile"] .file-row__icon { width: 20px; height: 20px; opacity: 0.6; }
+html[data-device="mobile"] .file-row__label {
+  max-width: none;
+  white-space: normal;       /* lange Dateinamen umbrechen statt abschneiden */
+  overflow-wrap: anywhere;
+  font-size: 0.85rem;
+  line-height: 1.35;
+}
+
+/* Ordner-Zeilen: kein leerer Aktionsbereich */
+html[data-device="mobile"] .file-row:not(:has(.btn-download, .btn-favorite, .btn-delete)) {
+  padding: 0.95rem 0.9rem;
+}
+html[data-device="mobile"] .file-row:not(:has(.btn-download, .btn-favorite, .btn-delete)) .file-row__meta { display: none; }
+
+html[data-device="mobile"] .favorites-path { word-break: break-all; }
+
+/* ─── MODALS: Vollbild auf dem Handy ──────────────────────────────────────── */
+
+html[data-device="mobile"] .settings-overlay,
+html[data-device="mobile"] .preview-overlay { padding: 0; }
+
+html[data-device="mobile"] .settings-modal,
+html[data-device="mobile"] .preview-modal {
+  width: 100%;
+  max-width: none;
+  height: 100dvh;
+  max-height: none;
+  border: none;
+  border-radius: 0;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+html[data-device="mobile"] .preview-modal__header,
+html[data-device="mobile"] .settings-modal__header {
+  padding: calc(0.6rem + env(safe-area-inset-top)) 0.9rem 0.6rem;
+}
+html[data-device="mobile"] .preview-modal__btn-close,
+html[data-device="mobile"] .preview-modal__btn-download {
+  min-width: 44px;
+  min-height: 44px;
+}
+html[data-device="mobile"] .preview-modal__body { flex: 1; min-height: 0; }
+html[data-device="mobile"] .preview-modal__body video,
+html[data-device="mobile"] .preview-modal__body img { max-height: calc(100dvh - 110px); }
+html[data-device="mobile"] .preview-modal__body iframe { min-height: calc(100dvh - 110px); }
+html[data-device="mobile"] .preview-modal__body pre { padding: 0.9rem; font-size: 0.74rem; }
+
+/* Einstellungen: ein Feld pro Zeile, große Schaltflächen */
+html[data-device="mobile"] .settings-modal__body { padding: 1rem 0.9rem; }
+html[data-device="mobile"] .settings-add-form { grid-template-columns: 1fr; }
+html[data-device="mobile"] .settings-modal__footer {
+  padding: 0.75rem 0.9rem calc(0.75rem + env(safe-area-inset-bottom));
+}
+html[data-device="mobile"] .settings-modal__footer button { min-height: 46px; flex: 1; }
+html[data-device="mobile"] .settings-add-btn,
+html[data-device="mobile"] .settings-path-row__del { min-height: 44px; }
+
+/* Eingabefelder mind. 16px, sonst zoomt iOS beim Fokussieren */
+html[data-device="mobile"] .form-input,
+html[data-device="tablet"] .form-input { font-size: 16px; min-height: 46px; }
+
+/* ─── LOGIN ───────────────────────────────────────────────────────────────── */
+
+html[data-device="mobile"] .login-page { padding: 1rem; min-height: 100dvh; align-items: flex-start; padding-top: 12vh; }
+html[data-device="mobile"] .login-card { padding: 1.75rem 1.25rem; }
+html[data-device="mobile"] .btn-primary { min-height: 48px; font-size: 1rem; }
+
+/* Einstellungs-Auswahl "Ansicht" (alle Geräte) */
+.settings-view-mode { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.settings-view-mode label {
+  display: flex; align-items: center; gap: 0.45rem;
+  padding: 0.55rem 0.9rem; min-height: 40px;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  color: var(--text-muted); cursor: pointer; font-size: 0.85rem;
+}
+.settings-view-mode input:checked + span { color: var(--accent); }
+.settings-view-mode label:has(input:checked) { border-color: var(--accent-border); background: var(--accent-dim); }
