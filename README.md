@@ -129,8 +129,21 @@ Danach neu starten (`pm2 restart nodeviewserver`).
 | `allowedBasePaths`  | Verzeichnisse, unter denen Freigaben erlaubt sind                              |
 | `expertMode`        | `true` erlaubt Freigaben außerhalb von `allowedBasePaths` (nur bewusst nutzen) |
 | `trustProxy`        | `true` nur hinter Reverse-Proxy (nginx/Caddy), sonst `false`                   |
+| `favoritesDir`      | Ordner für Favoriten-Dateien (Standard: `favorites/` im Serverordner)           |
 | `allowRemoteUpdate` | `false` sperrt den Update-Button der App                                       |
 | `whitelist`         | IPs, die `/files/*` ohne Login nutzen dürfen (Standard: leer)                  |
+
+## ⭐ Favoriten
+
+Wer eine Datei mit ★ markiert, **verschiebt** sie in den geschützten Ordner `favorites/`
+(Einstellung `favoritesDir`). Dort erreichen sie externe Aufräum- oder Löschroutinen
+(z. B. Skripte, die alte Aufnahmen entfernen) nicht mehr. Beim Entfernen des ★ wird die
+Datei an ihren ursprünglichen Ort zurückverschoben.
+
+- `favoritesDir` muss **außerhalb** der freigegebenen Verzeichnisse und des Bereichs
+  der Löschroutine liegen (der Server warnt beim Start, wenn nicht).
+- Alte Favoriten (reine Verweise) werden beim ersten Laden verschoben, sofern die Datei
+  noch existiert; sonst erscheinen sie mit ⚠ als „nicht mehr vorhanden“.
 
 ## 🛡️ Sicherheitshinweise
 
@@ -170,6 +183,7 @@ und setzt bei einem Fehler automatisch auf den vorherigen Stand zurück. Ausgabe
 | `setup-ssl.sh`    | SSL nachträglich einrichten         |
 | `disable-ssl.sh`  | SSL deaktivieren                    |
 | `.sessions/`      | Login-Sessions *(nicht im Git)*     |
+| `favorites/`      | Geschützte Favoriten *(nicht im Git)* |
 | `.env`            | Secrets *(nicht im Git)*            |
 | `config.js`       | Konfiguration *(nicht im Git)*      |
 | `paths.json`      | Freigabe-Pfade *(nicht im Git)*     |

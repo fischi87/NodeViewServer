@@ -47,6 +47,20 @@ if (validUsers.length === 0) {
   console.error('WARNUNG: Kein Benutzer mit gültigem bcrypt-Hash konfiguriert (.env prüfen, siehe README).');
 }
 
+// Favoriten werden in einen eigenen Ordner verschoben – der darf nicht in einem
+// freigegebenen Verzeichnis liegen (sonst erreichen ihn Aufräum-Routinen wieder).
+{
+  const favDir = path.resolve(config.favoritesDir || path.join(__dirname, 'favorites'));
+  const inside = Object.values(config.directories || {}).some(d => {
+    const r = path.resolve(d);
+    return favDir === r || favDir.startsWith(r + path.sep);
+  });
+  if (inside) {
+    console.error(`WARNUNG: Favoriten-Ordner (${favDir}) liegt in einem freigegebenen Verzeichnis. ` +
+      'Bitte "favoritesDir" in config.js auf einen Ordner außerhalb setzen.');
+  }
+}
+
 const app = express();
 
 // Optional: wenn hinter Proxy/Load-Balancer

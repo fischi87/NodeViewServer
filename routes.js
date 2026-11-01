@@ -2,6 +2,7 @@
 const express = require('express');
 const serveIndex = require('serve-index');
 const path = require('path');
+const crypto = require('crypto');
 const fs = require('fs/promises');
 const { exec } = require('child_process'); // Git-Check + update.sh
 
@@ -9,7 +10,7 @@ const config = require('./config');
 const auth = require('./auth');
 const { sortFilesByMTime } = require('./fileUtils');
 const { getRoots, setRoots, validateRootsInput, isUnderAllowedBase } = require('./pathsStore');
-const { getFavorites, setFavorites } = require('./favoritesStore');
+const { getFavorites, setFavorites, getFavoritesDir } = require('./favoritesStore');
 const pkg = require('./package.json'); // Version aus package.json
 
 const router = express.Router();
@@ -239,30 +240,152 @@ router.post('/api/paths', auth.requireAuthApi, async (req, res) => {
 // /api/favorites – Favoriten verwalten
 // -----------------------------------------------------------------------------
 
-router.get('/api/favorites', auth.requireAuthApi, (req, res) => {
-  res.json({ favorites: getFavorites() });
+// Datei verschieben; über Dateisystemgrenzen hinweg per Kopie + Löschen
+async function moveFile(from, to) {
+  try {
+    await fs.rename(from, to);
+  } catch (err) {
+    if (err.code !== 'EXDEV') throw err;
+    await fs.copyFile(from, to, require('fs').constants.COPYFILE_EXCL);
+    await fs.unlink(from);
+  }
+}
+
+// Favoriten-Operationen nacheinander ausführen (JSON-Datei + Dateisystem konsistent halten)
+let favQueue = Promise.resolve();
+function serialized(fn) {
+  const run = favQueue.then(fn, fn);
+  favQueue = run.catch(() => {});
+  return run;
+}
+
+function publicFavorite(f) {
+  return { id: f.id, name: f.name, path: f.path, alias: f.alias, missing: !!f.missing, legacy: !f.storedName };
+}
+
+// Realer Pfad der geschützten Favoriten-Datei (null, wenn nicht vorhanden)
+async function favoriteFile(f) {
+  if (!f.storedName) return null;
+  const dir = await fs.realpath(getFavoritesDir()).catch(() => null);
+  if (!dir) return null;
+  const real = await fs.realpath(path.join(dir, f.storedName)).catch(() => null);
+  return real && real.startsWith(dir + path.sep) ? real : null;
+}
+
+// Alte Favoriten (nur Verweise) einmalig in den geschützten Ordner verschieben,
+// soweit die Datei noch existiert; sonst als "missing" markieren.
+let migrated = false;
+async function migrateLegacyFavorites() {
+  if (migrated) return;
+  migrated = true;
+  const list = getFavorites().map(f => ({ ...f }));
+  let changed = false;
+  for (const f of list) {
+    if (f.storedName) continue;
+    if (!f.id) { f.id = crypto.randomUUID(); changed = true; }
+    try {
+      const parts = f.path.split('/').filter(Boolean);
+      const rootName = parts.shift();
+      const root = getRoots().find(r => r.name === rootName);
+      if (!root) { f.missing = true; changed = true; continue; }
+      const target = path.resolve(root.path, parts.join('/'));
+      const real = await fs.realpath(target);
+      const rootReal = await fs.realpath(root.path);
+      const st = await fs.stat(real);
+      if (!real.startsWith(rootReal + path.sep) || !st.isFile()) { f.missing = true; changed = true; continue; }
+      await fs.mkdir(getFavoritesDir(), { recursive: true, mode: 0o700 });
+      const storedName = f.id + path.extname(f.name);
+      await moveFile(real, path.join(getFavoritesDir(), storedName));
+      f.storedName = storedName;
+      f.origin = real;
+      delete f.missing;
+      changed = true;
+    } catch (err) {
+      f.missing = true;
+      changed = true;
+    }
+  }
+  if (changed) {
+    try { setFavorites(list); } catch (err) { console.error('[favorites] Migration nicht gespeichert:', err); }
+  }
+}
+
+router.get('/api/favorites', auth.requireAuthApi, async (req, res) => {
+  try {
+    await serialized(migrateLegacyFavorites);
+    res.json({ favorites: getFavorites().map(publicFavorite) });
+  } catch (err) {
+    console.error('[api/favorites] Fehler:', err);
+    res.status(500).json({ error: 'Fehler beim Laden der Favoriten' });
+  }
 });
 
-router.post('/api/favorites', auth.requireAuthApi, (req, res) => {
-  const { favorites } = req.body;
+// Favorit hinzufügen: Datei wird in den geschützten Favoriten-Ordner VERSCHOBEN
+router.post('/api/favorites/add', auth.requireAuthApi, (req, res) => {
+  serialized(async () => {
+    const relPath = req.body && typeof req.body.path === 'string' ? req.body.path.trim() : '';
+    if (!relPath) return res.status(400).json({ error: 'path fehlt' });
 
-  if (!Array.isArray(favorites)) {
-    return res.status(400).json({ error: 'favorites muss ein Array sein' });
-  }
-
-  const cleaned = favorites.filter(
-    f => f && typeof f.name === 'string' && typeof f.path === 'string'
-       && f.name.trim() && f.path.trim()
-  ).map(f => {
-    const entry = { name: f.name.trim(), path: f.path.trim() };
-    if (typeof f.alias === 'string' && f.alias.trim()) {
-      entry.alias = f.alias.trim();
+    if (getFavorites().some(f => f.path === relPath)) {
+      return res.status(409).json({ error: 'Ist bereits ein Favorit' });
     }
-    return entry;
-  });
 
-  setFavorites(cleaned);
-  res.json({ ok: true, favorites: getFavorites() });
+    const resolved = await resolveAndValidatePath(relPath, req);
+    const stat = resolved && await fs.stat(resolved.realPath).catch(() => null);
+    if (!stat || !stat.isFile()) return res.status(404).json({ error: 'Datei nicht gefunden' });
+
+    const id = crypto.randomUUID();
+    const name = path.basename(resolved.target);
+    const storedName = id + path.extname(name);
+    const dest = path.join(getFavoritesDir(), storedName);
+
+    await fs.mkdir(getFavoritesDir(), { recursive: true, mode: 0o700 });
+    await moveFile(resolved.realPath, dest);
+
+    try {
+      setFavorites([...getFavorites(), { id, name, path: relPath, storedName, origin: resolved.realPath }]);
+    } catch (err) {
+      await moveFile(dest, resolved.realPath).catch(() => {});
+      throw err;
+    }
+    res.json({ ok: true, favorites: getFavorites().map(publicFavorite) });
+  }).catch(err => {
+    console.error('[api/favorites/add] Fehler:', err);
+    res.status(500).json({ error: 'Favorit konnte nicht gespeichert werden' });
+  });
+});
+
+// Favorit entfernen: Datei wird an den ursprünglichen Ort zurückverschoben
+router.post('/api/favorites/remove', auth.requireAuthApi, (req, res) => {
+  serialized(async () => {
+    const id = req.body && typeof req.body.id === 'string' ? req.body.id : '';
+    const fav = getFavorites().find(f => f.id === id);
+    if (!fav) return res.status(404).json({ error: 'Favorit nicht gefunden' });
+
+    let restoredTo = null;
+    const stored = await favoriteFile(fav);
+    if (stored && fav.origin) {
+      let dest = fav.origin;
+      if (await fs.stat(dest).then(() => true, () => false)) {
+        const ext = path.extname(dest);
+        dest = path.join(path.dirname(dest), path.basename(dest, ext) + ' (Favorit)' + ext);
+      }
+      await fs.mkdir(path.dirname(dest), { recursive: true });
+      await moveFile(stored, dest);
+      restoredTo = dest;
+    }
+
+    try {
+      setFavorites(getFavorites().filter(f => f.id !== id));
+    } catch (err) {
+      if (restoredTo) await moveFile(restoredTo, stored).catch(() => {});
+      throw err;
+    }
+    res.json({ ok: true, favorites: getFavorites().map(publicFavorite) });
+  }).catch(err => {
+    console.error('[api/favorites/remove] Fehler:', err);
+    res.status(500).json({ error: 'Favorit konnte nicht entfernt werden' });
+  });
 });
 
 // -----------------------------------------------------------------------------
@@ -347,16 +470,26 @@ const INLINE_TYPES = {
 
 router.get('/api/file', auth.requireAuthApi, async (req, res) => {
   try {
-    const relativePath = req.query.path ? String(req.query.path).trim() : '';
+    let resolved;
 
-    if (!relativePath) {
-      return res.status(400).json({ error: 'path fehlt' });
-    }
+    if (req.query.fav) {
+      // Favorit aus dem geschützten Favoriten-Ordner
+      const fav = getFavorites().find(f => f.id === String(req.query.fav));
+      const realPath = fav && await favoriteFile(fav);
+      if (!realPath) return res.status(404).json({ error: 'Datei nicht gefunden' });
+      resolved = { realPath };
+    } else {
+      const relativePath = req.query.path ? String(req.query.path).trim() : '';
 
-    const resolved = await resolveAndValidatePath(relativePath, req);
+      if (!relativePath) {
+        return res.status(400).json({ error: 'path fehlt' });
+      }
 
-    if (!resolved) {
-      return res.status(400).json({ error: 'Ungültiger Pfad' });
+      resolved = await resolveAndValidatePath(relativePath, req);
+
+      if (!resolved) {
+        return res.status(400).json({ error: 'Ungültiger Pfad' });
+      }
     }
 
     const stat = await fs.stat(resolved.realPath).catch(err => {

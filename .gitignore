@@ -29,3 +29,4 @@ favorites.json
 .sessions/
 update.log
 .env.bak.*
+favorites/

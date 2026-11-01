@@ -70,29 +70,35 @@ async function loadFavorites() {
   }
 }
 
-async function saveFavorites() {
-  try {
-    await fetch('/api/favorites', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ favorites })
-    });
-  } catch (err) {
-    console.error('[saveFavorites] Fehler:', err);
-  }
-}
-
 function isFavorite(filePath) {
   return favorites.some(f => f.path === filePath);
 }
 
+// Beim Markieren verschiebt der Server die Datei in einen geschützten Ordner,
+// beim Entfernen zurück an den ursprünglichen Ort.
 async function toggleFavorite(name, filePath) {
-  if (isFavorite(filePath)) {
-    favorites = favorites.filter(f => f.path !== filePath);
-  } else {
-    favorites.push({ name, path: filePath });
+  const existing = favorites.find(f => f.path === filePath);
+  const url  = existing ? '/api/favorites/remove' : '/api/favorites/add';
+  const body = existing ? { id: existing.id } : { path: filePath };
+
+  try {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body)
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      alert('Favorit konnte nicht geändert werden: ' + (data.error || res.status));
+      return false;
+    }
+    favorites = Array.isArray(data.favorites) ? data.favorites : favorites;
+    return true;
+  } catch (err) {
+    console.error('[toggleFavorite] Fehler:', err);
+    alert('Favorit konnte nicht geändert werden.');
+    return false;
   }
-  await saveFavorites();
 }
 
 function updateFavoritesButtonState() {
@@ -242,7 +248,7 @@ function renderFavoritesView() {
     tr.className = 'file-row';
 
     tr.innerHTML = `
-      <td><div class="file-row__name">${ICON_FILE}<span class="file-row__label">${escapeHtml(fav.alias || formatFilename(fav.name, getFilenameMode()))}</span></div></td>
+      <td><div class="file-row__name">${ICON_FILE}<span class="file-row__label">${fav.missing ? '⚠ ' : ''}${escapeHtml(fav.alias || formatFilename(fav.name, getFilenameMode()))}</span></div></td>
       <td class="file-row__meta"><span class="favorites-path">${escapeHtml(fav.path)}</span></td>
       <td class="file-row__actions">
         <button class="btn-favorite active" title="Aus Favoriten entfernen" data-path="${escapeHtml(fav.path)}">★</button>
@@ -252,7 +258,13 @@ function renderFavoritesView() {
     // Zeile klicken öffnet Datei
     tr.addEventListener('click', e => {
       if (e.target.closest('.btn-favorite')) return;
-      const url = `/api/file?path=${encodeURIComponent(fav.path)}`;
+      if (fav.missing) {
+        alert('Diese Datei ist nicht mehr vorhanden. Du kannst den Favoriten mit ★ entfernen.');
+        return;
+      }
+      const url = fav.legacy
+        ? `/api/file?path=${encodeURIComponent(fav.path)}`
+        : `/api/file?fav=${encodeURIComponent(fav.id)}`;
       const type = getFileType(fav.name);
       if (type === 'other') {
         window.open(url, '_blank');
@@ -264,8 +276,7 @@ function renderFavoritesView() {
     // Stern-Button entfernt Favorit
     tr.querySelector('.btn-favorite').addEventListener('click', async e => {
       e.stopPropagation();
-      await toggleFavorite(fav.name, fav.path);
-      renderFavoritesView();
+      if (await toggleFavorite(fav.name, fav.path)) renderFavoritesView();
     });
 
     tbody.appendChild(tr);
@@ -352,7 +363,7 @@ async function renderFileList() {
       const favActive    = isFav ? ' active' : '';
       const favIndicator = isFav ? '<span class="file-row__fav-indicator">★</span>' : '';
       const starBtn      = item.type === 'file'
-        ? `<button class="btn-favorite${favActive}" data-path="${escapeHtml(filePath)}" data-name="${escapeHtml(item.name)}" title="Favorit">★</button>`
+        ? `<button class="btn-favorite${favActive}" data-path="${escapeHtml(filePath)}" data-name="${escapeHtml(item.name)}" title="Favorit (Datei wird vor dem Löschen geschützt)">★</button>`
         : '';
       const dlBtn        = item.type === 'file'
         ? `<a class="btn-download" href="/api/file?path=${encodeURIComponent(filePath)}" download="${escapeHtml(item.name)}" title="Herunterladen">↓</a>`
@@ -393,17 +404,8 @@ async function renderFileList() {
         if (starBtn) {
           starBtn.addEventListener('click', async e => {
             e.stopPropagation();
-            await toggleFavorite(item.name, filePath);
-            const nowFav = isFavorite(filePath);
-            starBtn.classList.toggle('active', nowFav);
-            const existingIndicator = tr.querySelector('.file-row__fav-indicator');
-            if (nowFav && !existingIndicator) {
-              tr.querySelector('.file-row__label').insertAdjacentHTML(
-                'afterend', '<span class="file-row__fav-indicator">★</span>'
-              );
-            } else if (!nowFav && existingIndicator) {
-              existingIndicator.remove();
-            }
+            // Die Datei wechselt den Ort – Liste neu laden
+            if (await toggleFavorite(item.name, filePath)) renderFileList();
           });
         }
       }
