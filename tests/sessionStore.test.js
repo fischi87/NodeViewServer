@@ -31,6 +31,14 @@ describe('FileStore', () => {
         await expect(call(store.set, '../evil', { cookie: {} })).rejects.toThrow();
     });
 
+    test('parallele Schreibvorgänge derselben Session schlagen nicht fehl', async () => {
+        const writes = Array.from({ length: 50 }, (_, i) =>
+            call(store.set, SID, { n: i, cookie: { expires: new Date(Date.now() + 60000) } }));
+        await expect(Promise.all(writes)).resolves.toBeDefined();
+        expect(fs.readdirSync(store.dir).filter(n => n.endsWith('.tmp'))).toHaveLength(0);
+        expect((await call(store.get, SID)).n).toBeGreaterThanOrEqual(0);
+    });
+
     test('Session-Dateien haben Rechte 0600', async () => {
         await call(store.set, SID, { cookie: {} });
         const mode = fs.statSync(path.join(store.dir, SID + '.json')).mode & 0o777;

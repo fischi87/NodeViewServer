@@ -147,6 +147,7 @@ app.use(express.static(path.join(__dirname, 'webSite')));
 // 6) Fehler-Handler
 app.use((err, req, res, next) => {
   console.error('Unhandled error:', err);
+  if (res.headersSent) return next(err);
   res.status(500).send('Interner Serverfehler');
 });
 

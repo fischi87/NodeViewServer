@@ -5,6 +5,8 @@ const fs = require('fs');
 const path = require('path');
 const session = require('express-session');
 
+const crypto = require('crypto');
+
 const SID_RE = /^[A-Za-z0-9_-]{16,128}$/;
 
 class FileStore extends session.Store {
@@ -45,11 +47,16 @@ class FileStore extends session.Store {
   set(sid, sess, cb = () => {}) {
     const f = this.file(sid);
     if (!f) return cb(new Error('Ungültige Session-ID'));
-    const tmp = f + '.tmp';
+    // eindeutige Zwischendatei: gleichzeitige Schreibvorgänge derselben Session
+    // (parallele Requests) dürfen sich nicht gegenseitig die Datei wegnehmen
+    const tmp = f + '.' + crypto.randomBytes(6).toString('hex') + '.tmp';
     const data = JSON.stringify({ expires: this.expiry(sess), sess });
     fs.writeFile(tmp, data, { mode: 0o600 }, (err) => {
       if (err) return cb(err);
-      fs.rename(tmp, f, cb);
+      fs.rename(tmp, f, (renameErr) => {
+        if (renameErr) fs.unlink(tmp, () => {});
+        cb(renameErr);
+      });
     });
   }
 
@@ -67,8 +74,14 @@ class FileStore extends session.Store {
     let names;
     try { names = fs.readdirSync(this.dir); } catch (_) { return; }
     for (const n of names) {
-      if (!n.endsWith('.json')) continue;
       const f = path.join(this.dir, n);
+      if (n.endsWith('.tmp')) {
+        try {
+          if (Date.now() - fs.statSync(f).mtimeMs > 60 * 1000) fs.unlinkSync(f);
+        } catch (_) { /* ignore */ }
+        continue;
+      }
+      if (!n.endsWith('.json')) continue;
       try {
         const { expires } = JSON.parse(fs.readFileSync(f, 'utf8'));
         if (expires <= Date.now()) fs.unlinkSync(f);
