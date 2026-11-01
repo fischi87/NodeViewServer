@@ -30,3 +30,4 @@ favorites.json
 update.log
 .env.bak.*
 favorites/
+cert-renew.log

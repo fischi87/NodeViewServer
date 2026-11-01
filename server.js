@@ -176,6 +176,22 @@ if (require.main === module) {
     });
   }
 
+  // Zertifikate (z. B. Tailscale/Let's Encrypt, ~90 Tage gültig) täglich neu einlesen,
+  // damit eine Erneuerung ohne Server-Neustart wirksam wird.
+  if (config.ssl && config.ssl.enabled && typeof server.setSecureContext === 'function') {
+    const reloadCerts = () => {
+      try {
+        server.setSecureContext({
+          key: fs.readFileSync(path.resolve(__dirname, config.ssl.key)),
+          cert: fs.readFileSync(path.resolve(__dirname, config.ssl.cert))
+        });
+      } catch (err) {
+        console.error('Zertifikat konnte nicht neu geladen werden:', err.message);
+      }
+    };
+    setInterval(reloadCerts, 24 * 60 * 60 * 1000).unref();
+  }
+
   // Graceful Shutdown (PM2 restart / Ctrl+C)
   const shutdown = (signal) => {
     console.log(`${signal} empfangen, fahre herunter...`);

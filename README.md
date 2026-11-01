@@ -87,6 +87,32 @@ bash disable-ssl.sh
 
 ---
 
+## 🌍 Zugriff von unterwegs (empfohlen: Tailscale)
+
+Den Server **nicht per Portfreigabe ins Internet stellen** – bei DS-Lite-Anschlüssen ist
+eine IPv4-Portfreigabe ohnehin nicht möglich. Stattdessen **Tailscale** (privates VPN,
+kostenlos für Privatnutzung): Es braucht keine Freigabe, der Server ist nicht öffentlich
+erreichbar, und es gibt ein echtes HTTPS-Zertifikat ohne Browser-Warnung.
+
+1. Tailscale auf dem Server installieren ([tailscale.com/download](https://tailscale.com/download)) und `sudo tailscale up` ausführen.
+2. In der [Tailscale-Admin-Konsole](https://login.tailscale.com/admin/dns) unter **DNS** *MagicDNS* und *HTTPS Certificates* aktivieren.
+3. Tailscale-App auf Handy/PC installieren und mit demselben Konto anmelden.
+4. Auf dem Server das Zertifikat einrichten:
+
+   ```bash
+   bash setup-ssl.sh      # Option 3: Tailscale-Zertifikat
+   pm2 restart nodeviewserver
+   ```
+
+5. Aufruf von überall (mit aktivem Tailscale): `https://<servername>.<netz>.ts.net:<PORT>`
+
+Das Zertifikat gilt ca. 90 Tage. `setup-ssl.sh` trägt auf Wunsch einen Cronjob ein, der es
+wöchentlich über `renew-tailscale-cert.sh` erneuert; der laufende Server lädt es täglich
+neu, ein Neustart ist nicht nötig. Auf dem Handy kann Tailscale als „Verbindung bei Bedarf“
+laufen und verbraucht dann kaum Akku. Geräte ohne Tailscale haben **keinen** Zugriff.
+
+---
+
 ## ▶️ Server starten
 
 **Mit PM2** (empfohlen – läuft nach Neustart automatisch weiter):
@@ -182,7 +208,8 @@ und setzt bei einem Fehler automatisch auf den vorherigen Stand zurück. Ausgabe
 | `favoritesStore.js` | Favoriten                         |
 | `install.sh`      | Ersteinrichtung                     |
 | `update.sh`       | Update-Script                       |
-| `setup-ssl.sh`    | SSL nachträglich einrichten         |
+| `setup-ssl.sh`    | SSL nachträglich einrichten (inkl. Tailscale) |
+| `renew-tailscale-cert.sh` | Tailscale-Zertifikat erneuern |
 | `disable-ssl.sh`  | SSL deaktivieren                    |
 | `.sessions/`      | Login-Sessions *(nicht im Git)*     |
 | `favorites/`      | Geschützte Favoriten *(nicht im Git)* |
